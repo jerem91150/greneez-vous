@@ -1,0 +1,9 @@
+{
+  "name": "greenez-vous",
+  "version": "1.0.0",
+  "description": "Boutique e-commerce Greenez Vous",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx live-server --port=3000"
+  }
+}

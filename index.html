@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Greenez Vous - Boutique Textile Responsable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-editorial { font-family: 'Playfair Display', serif; }
+        @keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .animate-marquee { animation: marquee 30s linear infinite; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-slideIn { animation: slideIn 0.3s ease-out; }
+        .modal-backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    </style>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-[#FDFCF8] text-stone-800 antialiased selection:bg-emerald-200 selection:text-emerald-900">
+    <div id="root"></div>
+    <script type="text/babel">
+const { useState, useEffect, createContext, useContext } = React;
+
+// ICONES
+const IconWrapper = ({ children, size = 24, className = "" }) => (<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>);
+const Leaf = (props) => (<IconWrapper {...props}><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></IconWrapper>);
+const ShoppingBag = (props) => (<IconWrapper {...props}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></IconWrapper>);
+const MenuIcon = (props) => (<IconWrapper {...props}><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></IconWrapper>);
+const XIcon = (props) => (<IconWrapper {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconWrapper>);
+const Star = (props) => (<IconWrapper {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></IconWrapper>);
+const ArrowRight = (props) => (<IconWrapper {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></IconWrapper>);
+const ArrowLeft = (props) => (<IconWrapper {...props}><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></IconWrapper>);
+const MoveRight = (props) => (<IconWrapper {...props}><path d="M18 8L22 12L18 16"/><path d="M2 12H22"/></IconWrapper>);
+const Instagram = (props) => (<IconWrapper {...props}><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></IconWrapper>);
+const Facebook = (props) => (<IconWrapper {...props}><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></IconWrapper>);
+const Mail = (props) => (<IconWrapper {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></IconWrapper>);
+const Plus = (props) => (<IconWrapper {...props}><path d="M5 12h14"/><path d="M12 5v14"/></IconWrapper>);
+const Minus = (props) => (<IconWrapper {...props}><path d="M5 12h14"/></IconWrapper>);
+const Trash = (props) => (<IconWrapper {...props}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></IconWrapper>);
+const Edit = (props) => (<IconWrapper {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></IconWrapper>);
+const User = (props) => (<IconWrapper {...props}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></IconWrapper>);
+const Package = (props) => (<IconWrapper {...props}><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></IconWrapper>);
+const Calendar = (props) => (<IconWrapper {...props}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></IconWrapper>);
+const Tag = (props) => (<IconWrapper {...props}><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></IconWrapper>);
+const ShoppingCart = (props) => (<IconWrapper {...props}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></IconWrapper>);
+const Eye = (props) => (<IconWrapper {...props}><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></IconWrapper>);
+const Search = (props) => (<IconWrapper {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></IconWrapper>);
+const Check = (props) => (<IconWrapper {...props}><polyline points="20 6 9 17 4 12"/></IconWrapper>);
+const MapPin = (props) => (<IconWrapper {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></IconWrapper>);
+const CreditCard = (props) => (<IconWrapper {...props}><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></IconWrapper>);
+const Truck = (props) => (<IconWrapper {...props}><path d="M10 17h4V5H2v12h3"/><path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1"/><circle cx="7.5" cy="17.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></IconWrapper>);
+const BarChart = (props) => (<IconWrapper {...props}><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></IconWrapper>);
+
+// DONNEES - PRODUITS GREENEZ VOUS
+const initialCategories = [
+    { id: 1, name: "Salle de Bain", slug: "salle-de-bain" },
+    { id: 2, name: "Accessoires Cheveux", slug: "accessoires-cheveux" },
+    { id: 3, name: "Douche", slug: "douche" },
+    { id: 4, name: "Vrac & Cuisine", slug: "vrac-cuisine" }
+];
+
+const initialProducts = [
+    { id: 1, name: "Mini serviette visage", subtitle: "Motifs fleuris", description: "Mini serviette lavable pour le visage, ideale pour se demaquiller ou se rafraichir. Tissu doux et absorbant, lavable en machine. Fait main en France.", price: 6.00, stock: 30, categoryId: 1, image: "https://images.unsplash.com/photo-1596436665715-c274439c3621?auto=format&fit=crop&q=80&w=600", tag: "Best-seller", active: true },
+    { id: 2, name: "Mini serviette Toile de Jouy bleue", subtitle: "Motif Toile de Jouy", description: "Mini serviette visage au motif Toile de Jouy bleue, elegante et douce. Parfaite pour vos rituels beaute quotidiens.", price: 6.00, stock: 25, categoryId: 1, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=600", tag: null, active: true },
+    { id: 3, name: "Mini serviette Toile de Jouy rouge", subtitle: "Motif Toile de Jouy", description: "Mini serviette visage au motif Toile de Jouy rouge, elegante et douce. Un accessoire zero dechet indispensable.", price: 6.00, stock: 20, categoryId: 1, image: "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&q=80&w=600", tag: null, active: true },
+    { id: 4, name: "Mini gant lavable micro eponge", subtitle: "Micro eponge douce", description: "Mini gant lavable en micro eponge, parfait pour nettoyer le visage en douceur. Texture ultra douce.", price: 4.00, stock: 40, categoryId: 1, image: "https://images.unsplash.com/photo-1596436665715-c274439c3621?auto=format&fit=crop&q=80&w=600", tag: "Nouveau", active: true },
+    { id: 5, name: "Mini gant eponge de bambou", subtitle: "Eponge de bambou", description: "Mini gant en micro eponge de bambou, naturellement antibacterien et ultra absorbant.", price: 4.00, stock: 35, categoryId: 1, image: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&q=80&w=600", tag: null, active: true },
+    { id: 6, name: "Bandeau de soins cheveux", subtitle: "Motifs varies", description: "Bandeau elastique pour maintenir vos cheveux pendant vos soins visage. Tissu doux et confortable.", price: 12.00, stock: 25, categoryId: 2, image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&q=80&w=600", tag: "Best-seller", active: true },
+    { id: 7, name: "Chouchou Toile de Jouy rouge", subtitle: "Tissu upcycle", description: "Chouchou elegant au motif Toile de Jouy rouge, realise a partir de chutes de tissu. Piece unique.", price: 5.00, stock: 50, categoryId: 2, image: "https://images.unsplash.com/photo-1616406432452-07bc5928a55c?auto=format&fit=crop&q=80&w=600", tag: null, active: true },
+    { id: 8, name: "Chouchou Toile de Jouy vert", subtitle: "Tissu upcycle", description: "Chouchou elegant au motif Toile de Jouy vert, realise a partir de chutes de tissu. Eco-responsable.", price: 5.00, stock: 45, categoryId: 2, image: "https://images.unsplash.com/photo-1616406432452-07bc5928a55c?auto=format&fit=crop&q=80&w=600", tag: null, active: true },
+    { id: 9, name: "Fleur de douche", subtitle: "Micro eponge douce", description: "Fleur de douche lavable et reutilisable en micro eponge. Alternative zero dechet. Mousse genereusement.", price: 8.00, stock: 30, categoryId: 3, image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&q=80&w=600", tag: "Populaire", active: true },
+    { id: 10, name: "Circuit de poche", subtitle: "Jeu de voyage", description: "Circuit de poche fait main, parfait pour occuper les enfants en voyage. Tissu resistant et lavable.", price: 20.00, stock: 15, categoryId: 4, image: "https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&q=80&w=600", tag: "Piece unique", active: true },
+    { id: 11, name: "Pochon anti-gaspi coton bio", subtitle: "Coton bio certifie", description: "Pochon en coton bio pour conserver vos restes de pain ou vos fruits. Lavable et reutilisable.", price: 6.00, stock: 40, categoryId: 4, image: "https://images.unsplash.com/photo-1605335804344-9694e80e1a17?auto=format&fit=crop&q=80&w=600", tag: "Eco-responsable", active: true },
+    { id: 12, name: "Pochon produits solides", subtitle: "Lin lave naturel", description: "Pochon ideal pour ranger vos cosmetiques solides. Tissu respirant qui permet le sechage.", price: 6.00, stock: 35, categoryId: 4, image: "https://images.unsplash.com/photo-1605335804344-9694e80e1a17?auto=format&fit=crop&q=80&w=600", tag: null, active: true }
+];
+
+const initialEvents = [
+    { id: 1, title: "Marche de Noel Artisanal", description: "Retrouvez-nous au marche de Noel de Lyon, place Bellecour.", date: "2024-12-15", location: "Lyon, Place Bellecour", active: true },
+    { id: 2, title: "Atelier Couture Zero Dechet", description: "Apprenez a coudre vos propres lingettes ! Places limitees.", date: "2024-12-20", location: "Atelier Greenez Vous, Lyon 3e", active: true },
+    { id: 3, title: "Marche des Createurs", description: "Greenez Vous sera present au marche des createurs.", date: "2025-01-18", location: "Villeurbanne", active: true }
+];
+
+const initialPromos = [
+    { id: 1, code: "BIENVENUE10", discount: 10, type: "percent", minOrder: 0, active: true, usageCount: 45, maxUsage: 100 },
+    { id: 2, code: "NOEL2024", discount: 15, type: "percent", minOrder: 25, active: true, usageCount: 12, maxUsage: 50 },
+    { id: 3, code: "ZERODECHET", discount: 5, type: "fixed", minOrder: 30, active: true, usageCount: 8, maxUsage: 30 }
+];
+
+// HELPERS
+const getStoredData = (key, defaultValue) => { try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : defaultValue; } catch { return defaultValue; } };
+const setStoredData = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
+
+// CONTEXTE
+const AppContext = createContext();
+const AppProvider = ({ children }) => {
+    const [page, setPage] = useState('home');
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedCategory, setSelectedCategory] = useState(null);
+    const [cart, setCart] = useState(() => getStoredData('greenez_cart', []));
+    const [products, setProducts] = useState(() => getStoredData('greenez_products', initialProducts));
+    const [categories] = useState(initialCategories);
+    const [events, setEvents] = useState(() => getStoredData('greenez_events', initialEvents));
+    const [promos, setPromos] = useState(() => getStoredData('greenez_promos', initialPromos));
+    const [orders, setOrders] = useState(() => getStoredData('greenez_orders', []));
+    const [isAdmin, setIsAdmin] = useState(() => getStoredData('greenez_admin', false));
+    const [cartOpen, setCartOpen] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const [appliedPromo, setAppliedPromo] = useState(null);
+
+    useEffect(() => { setStoredData('greenez_cart', cart); }, [cart]);
+    useEffect(() => { setStoredData('greenez_products', products); }, [products]);
+    useEffect(() => { setStoredData('greenez_events', events); }, [events]);
+    useEffect(() => { setStoredData('greenez_promos', promos); }, [promos]);
+    useEffect(() => { setStoredData('greenez_orders', orders); }, [orders]);
+    useEffect(() => { setStoredData('greenez_admin', isAdmin); }, [isAdmin]);
+
+    const showNotification = (message, type = 'success') => { setNotification({ message, type }); setTimeout(() => setNotification(null), 3000); };
+    const addToCart = (product, qty = 1) => { setCart(prev => { const existing = prev.find(item => item.id === product.id); if (existing) { return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + qty } : item); } return [...prev, { ...product, quantity: qty }]; }); showNotification(product.name + ' ajoute au panier !'); };
+    const removeFromCart = (productId) => setCart(prev => prev.filter(item => item.id !== productId));
+    const updateCartQuantity = (productId, qty) => { if (qty <= 0) { removeFromCart(productId); return; } setCart(prev => prev.map(item => item.id === productId ? { ...item, quantity: qty } : item)); };
+    const clearCart = () => setCart([]);
+    const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    const applyPromoCode = (code) => { const promo = promos.find(p => p.code.toUpperCase() === code.toUpperCase() && p.active && p.usageCount < p.maxUsage); if (promo) { if (cartTotal >= promo.minOrder) { setAppliedPromo(promo); showNotification('Code promo ' + promo.code + ' applique !'); return true; } else { showNotification('Commande minimum de ' + promo.minOrder + ' EUR requise', 'error'); return false; } } showNotification('Code promo invalide', 'error'); return false; };
+    const getDiscountedTotal = () => { if (!appliedPromo) return cartTotal; if (appliedPromo.type === 'percent') return cartTotal * (1 - appliedPromo.discount / 100); return Math.max(0, cartTotal - appliedPromo.discount); };
+    const placeOrder = (customerInfo) => { const newOrder = { id: Date.now(), items: [...cart], customer: customerInfo, total: getDiscountedTotal(), promoUsed: appliedPromo?.code || null, status: 'pending', date: new Date().toISOString() }; setOrders(prev => [...prev, newOrder]); if (appliedPromo) { setPromos(prev => prev.map(p => p.id === appliedPromo.id ? { ...p, usageCount: p.usageCount + 1 } : p)); } clearCart(); setAppliedPromo(null); showNotification('Commande validee ! Merci pour votre achat.'); setPage('home'); return newOrder; };
+
+    const addProduct = (product) => { setProducts(prev => [...prev, { ...product, id: Date.now(), active: true }]); showNotification('Produit ajoute !'); };
+    const updateProduct = (id, updates) => { setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); showNotification('Produit mis a jour !'); };
+    const deleteProduct = (id) => { setProducts(prev => prev.filter(p => p.id !== id)); showNotification('Produit supprime !'); };
+    const addEvent = (event) => { setEvents(prev => [...prev, { ...event, id: Date.now(), active: true }]); showNotification('Evenement ajoute !'); };
+    const updateEvent = (id, updates) => { setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); showNotification('Evenement mis a jour !'); };
+    const deleteEvent = (id) => { setEvents(prev => prev.filter(e => e.id !== id)); showNotification('Evenement supprime !'); };
+    const addPromo = (promo) => { setPromos(prev => [...prev, { ...promo, id: Date.now(), usageCount: 0, active: true }]); showNotification('Code promo ajoute !'); };
+    const updatePromo = (id, updates) => { setPromos(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); showNotification('Code promo mis a jour !'); };
+    const deletePromo = (id) => { setPromos(prev => prev.filter(p => p.id !== id)); showNotification('Code promo supprime !'); };
+    const updateOrderStatus = (id, status) => { setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o)); showNotification('Statut mis a jour !'); };
+
+    const value = { page, setPage, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, cartTotal, cartCount, products, categories, events, promos, orders, isAdmin, setIsAdmin, cartOpen, setCartOpen, notification, showNotification, appliedPromo, applyPromoCode, getDiscountedTotal, placeOrder, addProduct, updateProduct, deleteProduct, addEvent, updateEvent, deleteEvent, addPromo, updatePromo, deletePromo, updateOrderStatus };
+    return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+const useApp = () => useContext(AppContext);
+
+// COMPOSANTS UI
+const Notification = () => { const { notification } = useApp(); if (!notification) return null; return (<div className={"fixed top-20 right-4 z-[100] px-6 py-3 rounded-xl shadow-lg animate-fadeIn text-white font-medium " + (notification.type === 'error' ? 'bg-red-500' : 'bg-emerald-600')}>{notification.message}</div>); };
+const Modal = ({ isOpen, onClose, title, children }) => { if (!isOpen) return null; return (<div className="fixed inset-0 z-[60] modal-backdrop flex items-center justify-center p-4" onClick={onClose}><div className="bg-white rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto animate-fadeIn" onClick={e => e.stopPropagation()}><div className="p-6 border-b border-stone-100 flex justify-between items-center"><h3 className="font-editorial text-2xl text-emerald-950">{title}</h3><button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition"><XIcon size={20} /></button></div><div className="p-6">{children}</div></div></div>); };
+const Button = ({ children, variant = 'primary', size = 'md', className = '', ...props }) => { const base = "font-medium rounded-full transition-all duration-300 flex items-center justify-center gap-2"; const variants = { primary: "bg-emerald-900 text-white hover:bg-emerald-800", secondary: "border border-emerald-900/20 text-emerald-900 hover:bg-emerald-50", danger: "bg-red-500 text-white hover:bg-red-600", ghost: "text-stone-600 hover:bg-stone-100" }; const sizes = { sm: "px-4 py-2 text-sm", md: "px-6 py-3 text-sm", lg: "px-8 py-4" }; return <button className={base + " " + variants[variant] + " " + sizes[size] + " " + className} {...props}>{children}</button>; };
+const Input = ({ label, ...props }) => (<div className="mb-4">{label && <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>}<input className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition" {...props} /></div>);
+const Select = ({ label, options, ...props }) => (<div className="mb-4">{label && <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>}<select className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-white" {...props}>{options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}</select></div>);
+const Textarea = ({ label, ...props }) => (<div className="mb-4">{label && <label className="block text-sm font-medium text-stone-700 mb-1">{label}</label>}<textarea className="w-full px-4 py-3 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition resize-none" rows={4} {...props} /></div>);
+
+// NAVIGATION
+const Navigation = () => {
+    const { page, setPage, cartCount, setCartOpen, isAdmin } = useApp();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    useEffect(() => { const handleScroll = () => setScrolled(window.scrollY > 50); window.addEventListener('scroll', handleScroll); return () => window.removeEventListener('scroll', handleScroll); }, []);
+
+    return (
+        <nav className={"fixed top-0 left-0 right-0 z-50 transition-all duration-500 px-4 py-4 " + (scrolled ? 'py-2' : 'py-6')}>
+            <div className={"max-w-7xl mx-auto rounded-full transition-all duration-500 " + (scrolled ? 'bg-white/90 backdrop-blur-md shadow-lg py-3 px-6' : 'bg-transparent py-2 px-0')}>
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setPage('home'); setIsMenuOpen(false); }}>
+                        <div className="w-8 h-8 bg-emerald-900 text-emerald-50 rounded-full flex items-center justify-center transform group-hover:rotate-12 transition duration-300"><Leaf size={14} /></div>
+                        <span className="font-editorial font-bold text-xl text-emerald-950 tracking-tight">Greenez Vous</span>
+                    </div>
+                    <div className="hidden md:flex items-center gap-8">
+                        <button onClick={() => setPage('shop')} className={"text-sm font-medium transition relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-emerald-800 after:transition-all " + (page === 'shop' ? 'text-emerald-800 after:w-full' : 'text-stone-600 hover:text-emerald-800 after:w-0 hover:after:w-full')}>Boutique</button>
+                        <button onClick={() => setPage('events')} className={"text-sm font-medium transition relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-emerald-800 after:transition-all " + (page === 'events' ? 'text-emerald-800 after:w-full' : 'text-stone-600 hover:text-emerald-800 after:w-0 hover:after:w-full')}>Evenements</button>
+                        <button onClick={() => setPage('about')} className={"text-sm font-medium transition relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:h-px after:bg-emerald-800 after:transition-all " + (page === 'about' ? 'text-emerald-800 after:w-full' : 'text-stone-600 hover:text-emerald-800 after:w-0 hover:after:w-full')}>L'Atelier</button>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => setCartOpen(true)} className="flex items-center gap-2 text-sm font-medium hover:text-emerald-800 transition relative"><ShoppingBag size={20} /><span className="hidden sm:inline">Panier</span>{cartCount > 0 && <span className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-600 text-white text-xs rounded-full flex items-center justify-center">{cartCount}</span>}</button>
+                        <button onClick={() => setPage(isAdmin ? 'admin' : 'login')} className="p-2 hover:bg-emerald-50 rounded-full transition" title={isAdmin ? 'Admin' : 'Connexion'}><User size={20} className={isAdmin ? 'text-emerald-600' : ''} /></button>
+                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 text-stone-800">{isMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}</button>
+                    </div>
+                </div>
+            </div>
+            {isMenuOpen && (<div className="absolute top-20 left-4 right-4 bg-white rounded-3xl shadow-2xl p-6 md:hidden z-50 animate-fadeIn"><nav className="flex flex-col gap-4 text-center"><button onClick={() => { setPage('shop'); setIsMenuOpen(false); }} className="text-xl font-editorial text-stone-800 py-2 border-b border-stone-100">Boutique</button><button onClick={() => { setPage('events'); setIsMenuOpen(false); }} className="text-xl font-editorial text-stone-800 py-2 border-b border-stone-100">Evenements</button><button onClick={() => { setPage('about'); setIsMenuOpen(false); }} className="text-xl font-editorial text-stone-800 py-2">L'Atelier</button></nav></div>)}
+        </nav>
+    );
+};
+
+// PANIER
+const CartSidebar = () => {
+    const { cartOpen, setCartOpen, cart, cartTotal, removeFromCart, updateCartQuantity, setPage, appliedPromo, applyPromoCode, getDiscountedTotal } = useApp();
+    const [promoInput, setPromoInput] = useState('');
+    if (!cartOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[70]">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCartOpen(false)} />
+            <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl animate-slideIn flex flex-col">
+                <div className="p-6 border-b border-stone-100 flex justify-between items-center"><h2 className="font-editorial text-2xl text-emerald-950">Votre Panier</h2><button onClick={() => setCartOpen(false)} className="p-2 hover:bg-stone-100 rounded-full transition"><XIcon size={20} /></button></div>
+                <div className="flex-1 overflow-y-auto p-6">
+                    {cart.length === 0 ? (<div className="text-center py-12"><ShoppingBag size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Votre panier est vide</p><Button variant="secondary" className="mt-4" onClick={() => { setCartOpen(false); setPage('shop'); }}>Decouvrir la boutique</Button></div>) : (<div className="space-y-4">{cart.map(item => (<div key={item.id} className="flex gap-4 p-4 bg-stone-50 rounded-2xl"><img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-xl" /><div className="flex-1"><h4 className="font-medium text-stone-900">{item.name}</h4><p className="text-sm text-stone-500">{item.price.toFixed(2)} EUR</p><div className="flex items-center gap-2 mt-2"><button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="p-1 hover:bg-stone-200 rounded"><Minus size={16} /></button><span className="w-8 text-center">{item.quantity}</span><button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="p-1 hover:bg-stone-200 rounded"><Plus size={16} /></button></div></div><button onClick={() => removeFromCart(item.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full h-fit"><Trash size={18} /></button></div>))}</div>)}
+                </div>
+                {cart.length > 0 && (<div className="p-6 border-t border-stone-100 bg-stone-50"><div className="flex gap-2 mb-4"><input type="text" placeholder="Code promo" value={promoInput} onChange={e => setPromoInput(e.target.value)} className="flex-1 px-4 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" /><Button size="sm" onClick={() => { applyPromoCode(promoInput); setPromoInput(''); }}>Appliquer</Button></div>{appliedPromo && (<div className="flex items-center gap-2 text-emerald-600 text-sm mb-4"><Check size={16} /><span>Code {appliedPromo.code} applique (-{appliedPromo.discount}{appliedPromo.type === 'percent' ? '%' : 'EUR'})</span></div>)}<div className="flex justify-between items-center mb-2"><span className="text-stone-600">Sous-total</span><span className="font-medium">{cartTotal.toFixed(2)} EUR</span></div>{appliedPromo && (<div className="flex justify-between items-center mb-2 text-emerald-600"><span>Reduction</span><span>-{(cartTotal - getDiscountedTotal()).toFixed(2)} EUR</span></div>)}<div className="flex justify-between items-center mb-4 text-lg font-bold"><span>Total</span><span className="text-emerald-900">{getDiscountedTotal().toFixed(2)} EUR</span></div><Button className="w-full" onClick={() => { setCartOpen(false); setPage('checkout'); }}>Commander <ArrowRight size={16} /></Button></div>)}
+            </div>
+        </div>
+    );
+};
+
+// CARTE PRODUIT
+const ProductCard = ({ product }) => {
+    const { addToCart, setPage, setSelectedProduct } = useApp();
+    return (
+        <div className="group">
+            <div className="relative aspect-[3/4] overflow-hidden rounded-2xl mb-4 bg-stone-200 cursor-pointer" onClick={() => { setSelectedProduct(product); setPage('product'); }}>
+                {product.tag && <span className="absolute top-3 left-3 bg-emerald-900 text-white text-[10px] font-bold px-3 py-1 rounded-full z-10 uppercase tracking-wide">{product.tag}</span>}
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition duration-700 ease-in-out" />
+                <div className="absolute bottom-4 left-0 right-0 px-4 opacity-0 group-hover:opacity-100 transition duration-300 translate-y-4 group-hover:translate-y-0"><button onClick={(e) => { e.stopPropagation(); addToCart(product); }} className="w-full bg-white text-stone-900 py-3 rounded-xl font-medium shadow-lg hover:bg-emerald-50 transition">Ajouter</button></div>
+            </div>
+            <div className="flex justify-between items-start"><div><h3 className="font-editorial text-xl text-stone-900 group-hover:text-emerald-800 transition cursor-pointer" onClick={() => { setSelectedProduct(product); setPage('product'); }}>{product.name}</h3><p className="text-sm text-stone-500">{product.subtitle}</p></div><span className="font-medium text-emerald-900">{product.price.toFixed(2)} EUR</span></div>
+        </div>
+    );
+};
+
+// FOOTER
+const Footer = () => (
+    <footer className="bg-emerald-950 text-emerald-50/60 pt-20 pb-10 mt-1">
+        <div className="max-w-7xl mx-auto px-8">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-20">
+                <div className="max-w-md"><div className="flex items-center gap-3 mb-6 text-white"><Leaf className="fill-white" size={24}/><span className="font-editorial text-3xl">Greenez Vous</span></div><p className="text-lg font-light leading-relaxed mb-8">Rejoignez le mouvement slow life. Une couture a la fois, pour un monde plus doux.</p><div className="flex gap-4"><a href="#" className="w-10 h-10 rounded-full border border-emerald-50/20 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-900 transition"><Instagram size={18}/></a><a href="#" className="w-10 h-10 rounded-full border border-emerald-50/20 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-900 transition"><Facebook size={18}/></a><a href="#" className="w-10 h-10 rounded-full border border-emerald-50/20 flex items-center justify-center hover:bg-emerald-50 hover:text-emerald-900 transition"><Mail size={18}/></a></div></div>
+                <div className="grid grid-cols-2 gap-12 lg:gap-24"><div><h5 className="text-white font-medium mb-6">Explorer</h5><ul className="space-y-4 text-sm"><li><a href="#" className="hover:text-white transition">Nouveautes</a></li><li><a href="#" className="hover:text-white transition">Best-sellers</a></li><li><a href="#" className="hover:text-white transition">Cartes Cadeau</a></li></ul></div><div><h5 className="text-white font-medium mb-6">Aide</h5><ul className="space-y-4 text-sm"><li><a href="#" className="hover:text-white transition">Livraison</a></li><li><a href="#" className="hover:text-white transition">Retours</a></li><li><a href="#" className="hover:text-white transition">Contact</a></li></ul></div></div>
+            </div>
+            <div className="border-t border-emerald-50/10 pt-8 flex flex-col md:flex-row justify-between items-center text-sm"><p>© 2024 Greenez Vous. Tous droits reserves.</p><p className="mt-2 md:mt-0">Fait avec amour.</p></div>
+        </div>
+    </footer>
+);
+
+// PAGE ACCUEIL
+const HomePage = () => {
+    const { setPage, products, events } = useApp();
+    const featuredProducts = products.filter(p => p.active).slice(0, 4);
+    const upcomingEvent = events.find(e => e.active && new Date(e.date) >= new Date());
+    return (
+        <div className="min-h-screen">
+            <header className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-4 overflow-hidden">
+                <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 items-center">
+                    <div className="lg:col-span-7 relative z-10">
+                        <span className="inline-block py-1 px-3 border border-emerald-900/20 rounded-full text-emerald-900 text-xs font-bold uppercase tracking-widest mb-6">Artisanat Textile Francais</span>
+                        <h1 className="font-editorial text-6xl sm:text-7xl lg:text-8xl text-emerald-950 leading-[0.9] mb-8">Naturel <br/><span className="italic font-light text-emerald-800">et poetique.</span></h1>
+                        <p className="text-lg text-stone-600 max-w-md mb-10 leading-relaxed">Une couture artisanale francaise qui prend soin de vous et de la planete. Simple, durable et terriblement douce.</p>
+                        <div className="flex flex-wrap gap-4"><Button onClick={() => setPage('shop')}>Explorer la boutique <ArrowRight size={16} /></Button><Button variant="secondary" onClick={() => setPage('about')}>Notre manifeste</Button></div>
+                    </div>
+                    <div className="lg:col-span-5 relative">
+                        <div className="relative aspect-[4/5] rounded-t-[10rem] rounded-b-[2rem] overflow-hidden shadow-2xl shadow-emerald-900/10">
+                            <img src="https://images.unsplash.com/photo-1550951660-843818e87d15?auto=format&fit=crop&q=80&w=800" alt="Textile mood" className="w-full h-full object-cover hover:scale-105 transition duration-1000 ease-out" />
+                            <div className="absolute bottom-6 right-6 bg-[#FDFCF8]/90 backdrop-blur p-4 rounded-2xl shadow-lg max-w-[150px]"><div className="flex gap-1 mb-1">{[...Array(5)].map((_,i) => <Star key={i} size={12} className="fill-emerald-900 text-emerald-900"/>)}</div><p className="text-xs text-stone-600 font-medium">"Mes lingettes preferees depuis 2 ans !"</p></div>
+                        </div>
+                        <div className="absolute -z-10 -bottom-10 -left-10 w-full h-full border border-emerald-900/10 rounded-t-[10rem] rounded-b-[2rem]"></div>
+                    </div>
+                </div>
+            </header>
+            <div className="bg-emerald-900 text-[#FDFCF8] py-4 overflow-hidden whitespace-nowrap"><div className="flex animate-marquee">{[...Array(6)].map((_, i) => (<div key={i} className="flex items-center gap-8 mx-4"><span className="text-lg font-medium tracking-wide">FAIT MAIN EN FRANCE</span><Star size={12} className="text-emerald-400" /><span className="text-lg font-medium tracking-wide">MATIERES NATURELLES</span><Star size={12} className="text-emerald-400" /><span className="text-lg font-medium tracking-wide">ZERO DECHET</span><Star size={12} className="text-emerald-400" /></div>))}</div></div>
+            <section className="py-24 px-4 max-w-7xl mx-auto">
+                <div className="flex flex-col md:flex-row justify-between items-end mb-12"><h2 className="font-editorial text-4xl md:text-5xl text-emerald-950">L'Atelier</h2><button onClick={() => setPage('shop')} className="hidden md:flex items-center gap-2 text-stone-500 hover:text-emerald-900 transition mt-4 md:mt-0 pb-1 border-b border-transparent hover:border-emerald-900">Tout voir <MoveRight size={18}/></button></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[300px]">
+                    <div className="md:col-span-2 relative group overflow-hidden rounded-3xl cursor-pointer" onClick={() => setPage('shop')}><img src="https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&q=80&w=1000" className="w-full h-full object-cover transition duration-700 group-hover:scale-105" alt="Salle de bain" /><div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-8"><div className="text-white"><h3 className="font-editorial text-3xl mb-1">Salle de Bain</h3><p className="opacity-0 group-hover:opacity-100 transition text-sm">Lingettes, serviettes & gants</p></div></div></div>
+                    <div className="relative group overflow-hidden rounded-3xl cursor-pointer" onClick={() => setPage('shop')}><img src="https://images.unsplash.com/photo-1556910103-1c02745a30bf?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover transition duration-700 group-hover:scale-105" alt="Cuisine" /><div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition flex items-center justify-center"><span className="bg-white/90 backdrop-blur px-6 py-2 rounded-full font-editorial text-lg text-emerald-950 shadow-sm">Vrac & Cuisine</span></div></div>
+                    <div className="relative group overflow-hidden rounded-3xl cursor-pointer" onClick={() => setPage('shop')}><img src="https://images.unsplash.com/photo-1520268875323-997676742562?auto=format&fit=crop&q=80&w=600" className="w-full h-full object-cover transition duration-700 group-hover:scale-105" alt="Accessoires" /><div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition flex items-center justify-center"><span className="bg-white/90 backdrop-blur px-6 py-2 rounded-full font-editorial text-lg text-emerald-950 shadow-sm">Accessoires</span></div></div>
+                    <div className="md:col-span-2 bg-emerald-50 rounded-3xl p-8 flex flex-col justify-center items-start text-emerald-900 relative overflow-hidden group"><div className="absolute -right-8 -bottom-8 text-emerald-100 group-hover:rotate-12 transition duration-500"><Leaf size={120} /></div><h3 className="font-editorial text-3xl mb-4 relative z-10">Une creation sur mesure ?</h3><p className="mb-6 max-w-md relative z-10">Vous avez un tissu de famille que vous souhaitez transformer ? Discutons-en ensemble.</p><Button className="relative z-10">Contacter l'atelier</Button></div>
+                </div>
+            </section>
+            <section className="bg-stone-100 py-24 rounded-t-[3rem]">
+                <div className="max-w-7xl mx-auto px-4">
+                    <div className="text-center mb-16"><p className="text-emerald-700 font-medium tracking-widest uppercase text-xs mb-3">Selection du mois</p><h2 className="font-editorial text-4xl md:text-5xl text-stone-900">Les Pepites</h2></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">{featuredProducts.map(product => <ProductCard key={product.id} product={product} />)}</div>
+                    <div className="text-center mt-12"><Button variant="secondary" onClick={() => setPage('shop')}>Voir tous les produits <ArrowRight size={16} /></Button></div>
+                </div>
+            </section>
+            {upcomingEvent && (<section className="bg-emerald-900 text-white py-16 relative overflow-hidden"><div className="absolute inset-0 opacity-10"><div className="absolute right-0 top-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div></div><div className="max-w-7xl mx-auto px-4 relative z-10 flex flex-col md:flex-row items-center justify-between gap-8"><div><p className="text-emerald-300 text-sm font-medium mb-2 flex items-center gap-2"><Calendar size={16} /> Prochain evenement</p><h3 className="font-editorial text-3xl mb-2">{upcomingEvent.title}</h3><p className="text-emerald-200/80 flex items-center gap-2"><MapPin size={16} /> {upcomingEvent.location} - {new Date(upcomingEvent.date).toLocaleDateString('fr-FR')}</p></div><Button variant="secondary" className="bg-white text-emerald-900 border-white hover:bg-emerald-50" onClick={() => setPage('events')}>Voir les evenements</Button></div></section>)}
+            <section className="py-24 bg-white"><div className="max-w-7xl mx-auto px-4"><div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center divide-y md:divide-y-0 md:divide-x divide-stone-100"><div className="px-4 py-4"><h4 className="font-editorial text-2xl text-emerald-950 mb-3">100% Fait Main</h4><p className="text-stone-500 text-sm leading-relaxed">Pas d'usine, juste mes dix doigts et une machine a coudre dans mon atelier en France.</p></div><div className="px-4 py-4"><h4 className="font-editorial text-2xl text-emerald-950 mb-3">Matieres Nobles</h4><p className="text-stone-500 text-sm leading-relaxed">Selection rigoureuse de lin lave, coton bio certifie GOTS et tissus upcycles.</p></div><div className="px-4 py-4"><h4 className="font-editorial text-2xl text-emerald-950 mb-3">Envoi Soigne</h4><p className="text-stone-500 text-sm leading-relaxed">Emballages sans plastique, cartes ensemencees et petite touche parfumee.</p></div></div></div></section>
+            <Footer />
+        </div>
+    );
+};
+
+// PAGE BOUTIQUE
+const ShopPage = () => {
+    const { products, categories, selectedCategory, setSelectedCategory } = useApp();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('default');
+    const filteredProducts = products.filter(p => { if (!p.active) return false; if (selectedCategory && p.categoryId !== selectedCategory) return false; if (searchTerm && !p.name.toLowerCase().includes(searchTerm.toLowerCase())) return false; return true; }).sort((a, b) => { if (sortBy === 'price-asc') return a.price - b.price; if (sortBy === 'price-desc') return b.price - a.price; if (sortBy === 'name') return a.name.localeCompare(b.name); return 0; });
+    return (
+        <div className="min-h-screen pt-32 pb-24">
+            <div className="max-w-7xl mx-auto px-4">
+                <div className="text-center mb-12"><h1 className="font-editorial text-5xl md:text-6xl text-emerald-950 mb-4">La Boutique</h1><p className="text-stone-600 max-w-xl mx-auto">Decouvrez nos creations artisanales, faites main en France avec des matieres naturelles et responsables.</p></div>
+                <div className="flex flex-col md:flex-row gap-4 mb-12 items-center justify-between">
+                    <div className="flex flex-wrap gap-2"><button onClick={() => setSelectedCategory(null)} className={"px-4 py-2 rounded-full text-sm font-medium transition " + (!selectedCategory ? 'bg-emerald-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200')}>Tous</button>{categories.map(cat => (<button key={cat.id} onClick={() => setSelectedCategory(cat.id)} className={"px-4 py-2 rounded-full text-sm font-medium transition " + (selectedCategory === cat.id ? 'bg-emerald-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200')}>{cat.name}</button>))}</div>
+                    <div className="flex gap-4 items-center"><div className="relative"><Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" /><input type="text" placeholder="Rechercher..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 pr-4 py-2 border border-stone-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" /></div><select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-4 py-2 border border-stone-200 rounded-full text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"><option value="default">Trier par</option><option value="price-asc">Prix croissant</option><option value="price-desc">Prix decroissant</option><option value="name">Nom</option></select></div>
+                </div>
+                {filteredProducts.length === 0 ? (<div className="text-center py-24"><Package size={64} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500 text-lg">Aucun produit trouve</p></div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">{filteredProducts.map(product => <ProductCard key={product.id} product={product} />)}</div>)}
+            </div>
+            <Footer />
+        </div>
+    );
+};
+
+// PAGE PRODUIT
+const ProductPage = () => {
+    const { selectedProduct, addToCart, setPage, products, categories } = useApp();
+    const [quantity, setQuantity] = useState(1);
+    if (!selectedProduct) { setPage('shop'); return null; }
+    const category = categories.find(c => c.id === selectedProduct.categoryId);
+    const relatedProducts = products.filter(p => p.categoryId === selectedProduct.categoryId && p.id !== selectedProduct.id && p.active).slice(0, 4);
+    return (
+        <div className="min-h-screen pt-32 pb-24">
+            <div className="max-w-7xl mx-auto px-4">
+                <div className="flex items-center gap-2 text-sm text-stone-500 mb-8"><button onClick={() => setPage('home')} className="hover:text-emerald-800 transition">Accueil</button><span>/</span><button onClick={() => setPage('shop')} className="hover:text-emerald-800 transition">Boutique</button><span>/</span><span className="text-stone-800">{selectedProduct.name}</span></div>
+                <div className="grid lg:grid-cols-2 gap-12 mb-24">
+                    <div className="aspect-square rounded-3xl overflow-hidden bg-stone-100"><img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" /></div>
+                    <div className="flex flex-col justify-center">
+                        {selectedProduct.tag && <span className="inline-block w-fit bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide mb-4">{selectedProduct.tag}</span>}
+                        <h1 className="font-editorial text-4xl md:text-5xl text-emerald-950 mb-2">{selectedProduct.name}</h1>
+                        <p className="text-stone-500 mb-4">{selectedProduct.subtitle}</p>
+                        {category && <p className="text-sm text-emerald-700 mb-6">Categorie: {category.name}</p>}
+                        <p className="text-3xl font-bold text-emerald-900 mb-6">{selectedProduct.price.toFixed(2)} EUR</p>
+                        <p className="text-stone-600 leading-relaxed mb-8">{selectedProduct.description}</p>
+                        <div className="flex items-center gap-4 mb-6"><span className="text-sm font-medium text-stone-700">Quantite:</span><div className="flex items-center border border-stone-200 rounded-full"><button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="p-3 hover:bg-stone-100 rounded-l-full transition"><Minus size={16} /></button><span className="w-12 text-center font-medium">{quantity}</span><button onClick={() => setQuantity(quantity + 1)} className="p-3 hover:bg-stone-100 rounded-r-full transition"><Plus size={16} /></button></div></div>
+                        <div className="flex flex-wrap gap-4"><Button size="lg" onClick={() => addToCart(selectedProduct, quantity)}><ShoppingBag size={20} /> Ajouter au panier</Button></div>
+                        <div className="mt-8 pt-8 border-t border-stone-100 grid grid-cols-2 gap-4"><div className="flex items-center gap-3 text-sm text-stone-600"><Truck size={20} className="text-emerald-700" /><span>Livraison soignee</span></div><div className="flex items-center gap-3 text-sm text-stone-600"><Leaf size={20} className="text-emerald-700" /><span>Fait main en France</span></div></div>
+                    </div>
+                </div>
+                {relatedProducts.length > 0 && (<div><h2 className="font-editorial text-3xl text-emerald-950 mb-8">Vous aimerez aussi</h2><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-12">{relatedProducts.map(product => <ProductCard key={product.id} product={product} />)}</div></div>)}
+            </div>
+            <Footer />
+        </div>
+    );
+};
+
+// PAGE EVENEMENTS
+const EventsPage = () => {
+    const { events } = useApp();
+    const activeEvents = events.filter(e => e.active).sort((a, b) => new Date(a.date) - new Date(b.date));
+    return (
+        <div className="min-h-screen pt-32 pb-24">
+            <div className="max-w-4xl mx-auto px-4">
+                <div className="text-center mb-16"><h1 className="font-editorial text-5xl md:text-6xl text-emerald-950 mb-4">Evenements</h1><p className="text-stone-600 max-w-xl mx-auto">Retrouvez-nous lors de nos prochains marches et ateliers.</p></div>
+                {activeEvents.length === 0 ? (<div className="text-center py-24"><Calendar size={64} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500 text-lg">Aucun evenement a venir</p></div>) : (<div className="space-y-6">{activeEvents.map(event => (<div key={event.id} className="bg-white rounded-3xl p-8 shadow-sm border border-stone-100 hover:shadow-md transition"><div className="flex flex-col md:flex-row md:items-center justify-between gap-4"><div><div className="flex items-center gap-2 text-emerald-700 text-sm font-medium mb-2"><Calendar size={16} />{new Date(event.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div><h3 className="font-editorial text-2xl text-emerald-950 mb-2">{event.title}</h3><p className="text-stone-600 mb-3">{event.description}</p><div className="flex items-center gap-2 text-stone-500 text-sm"><MapPin size={16} />{event.location}</div></div><div className="flex-shrink-0"><div className="text-center bg-emerald-50 rounded-2xl p-4 min-w-[100px]"><div className="text-3xl font-bold text-emerald-900">{new Date(event.date).getDate()}</div><div className="text-sm text-emerald-700 uppercase">{new Date(event.date).toLocaleDateString('fr-FR', { month: 'short' })}</div></div></div></div></div>))}</div>)}
+            </div>
+            <Footer />
+        </div>
+    );
+};
+
+// PAGE A PROPOS
+const AboutPage = () => (
+    <div className="min-h-screen pt-32 pb-24">
+        <div className="max-w-4xl mx-auto px-4">
+            <div className="text-center mb-16"><h1 className="font-editorial text-5xl md:text-6xl text-emerald-950 mb-4">L'Atelier</h1><p className="text-stone-600 max-w-xl mx-auto">Derriere chaque creation, une histoire d'amour pour l'artisanat et la planete.</p></div>
+            <div className="aspect-video rounded-3xl overflow-hidden mb-12"><img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&q=80&w=1200" alt="L'atelier" className="w-full h-full object-cover" /></div>
+            <h2 className="font-editorial text-3xl text-emerald-950 mb-4">Notre Histoire</h2>
+            <p className="text-stone-600 mb-12">Greenez Vous est ne d'une envie simple : creer de beaux objets utiles, sans compromis sur l'ethique. Dans mon petit atelier lyonnais, je coupe, je couds, je brode chaque piece a la main.</p>
+            <h2 className="font-editorial text-3xl text-emerald-950 mb-6">Nos Engagements</h2>
+            <div className="grid md:grid-cols-2 gap-6">
+                <div className="bg-emerald-50 rounded-2xl p-6"><Leaf size={32} className="text-emerald-700 mb-4" /><h3 className="font-editorial text-xl text-emerald-950 mb-2">Matieres Responsables</h3><p className="text-stone-600 text-sm">Coton bio certifie GOTS, lin lave europeen, tissus upcycles.</p></div>
+                <div className="bg-emerald-50 rounded-2xl p-6"><Package size={32} className="text-emerald-700 mb-4" /><h3 className="font-editorial text-xl text-emerald-950 mb-2">Zero Dechet</h3><p className="text-stone-600 text-sm">Les chutes de tissu deviennent des chouchous ou des lingettes.</p></div>
+                <div className="bg-emerald-50 rounded-2xl p-6"><MapPin size={32} className="text-emerald-700 mb-4" /><h3 className="font-editorial text-xl text-emerald-950 mb-2">Made in France</h3><p className="text-stone-600 text-sm">Toutes nos creations sont confectionnees a Lyon.</p></div>
+                <div className="bg-emerald-50 rounded-2xl p-6"><Truck size={32} className="text-emerald-700 mb-4" /><h3 className="font-editorial text-xl text-emerald-950 mb-2">Envoi Eco-Responsable</h3><p className="text-stone-600 text-sm">Emballages en carton recycle, zero plastique.</p></div>
+            </div>
+        </div>
+        <Footer />
+    </div>
+);
+
+// PAGE CHECKOUT
+const CheckoutPage = () => {
+    const { cart, getDiscountedTotal, placeOrder, setPage, appliedPromo } = useApp();
+    const [step, setStep] = useState(1);
+    const [customerInfo, setCustomerInfo] = useState({ firstName: '', lastName: '', email: '', phone: '', address: '', city: '', postalCode: '', country: 'France' });
+    if (cart.length === 0) return (<div className="min-h-screen pt-32 pb-24 flex items-center justify-center"><div className="text-center"><ShoppingBag size={64} className="mx-auto text-stone-300 mb-4" /><h2 className="font-editorial text-2xl text-stone-800 mb-4">Votre panier est vide</h2><Button onClick={() => setPage('shop')}>Retour a la boutique</Button></div></div>);
+    const handleSubmit = (e) => { e.preventDefault(); if (step === 1) { setStep(2); return; } placeOrder(customerInfo); };
+    return (
+        <div className="min-h-screen pt-32 pb-24">
+            <div className="max-w-4xl mx-auto px-4">
+                <button onClick={() => setPage('shop')} className="flex items-center gap-2 text-stone-600 hover:text-emerald-800 transition mb-8"><ArrowLeft size={20} /> Continuer mes achats</button>
+                <h1 className="font-editorial text-4xl text-emerald-950 mb-8">Finaliser ma commande</h1>
+                <div className="flex items-center gap-4 mb-12"><div className={"flex items-center gap-2 " + (step >= 1 ? 'text-emerald-700' : 'text-stone-400')}><div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold " + (step >= 1 ? 'bg-emerald-700 text-white' : 'bg-stone-200')}>1</div><span className="font-medium">Informations</span></div><div className="flex-1 h-px bg-stone-200"></div><div className={"flex items-center gap-2 " + (step >= 2 ? 'text-emerald-700' : 'text-stone-400')}><div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold " + (step >= 2 ? 'bg-emerald-700 text-white' : 'bg-stone-200')}>2</div><span className="font-medium">Paiement</span></div></div>
+                <div className="grid lg:grid-cols-3 gap-12">
+                    <div className="lg:col-span-2">
+                        <form onSubmit={handleSubmit}>
+                            {step === 1 && (<div className="animate-fadeIn"><h2 className="font-editorial text-2xl text-emerald-950 mb-6">Vos coordonnees</h2><div className="grid sm:grid-cols-2 gap-4"><Input label="Prenom" required value={customerInfo.firstName} onChange={e => setCustomerInfo({...customerInfo, firstName: e.target.value})} /><Input label="Nom" required value={customerInfo.lastName} onChange={e => setCustomerInfo({...customerInfo, lastName: e.target.value})} /></div><Input label="Email" type="email" required value={customerInfo.email} onChange={e => setCustomerInfo({...customerInfo, email: e.target.value})} /><Input label="Telephone" type="tel" value={customerInfo.phone} onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} /><h2 className="font-editorial text-2xl text-emerald-950 mb-6 mt-8">Adresse de livraison</h2><Input label="Adresse" required value={customerInfo.address} onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})} /><div className="grid sm:grid-cols-2 gap-4"><Input label="Ville" required value={customerInfo.city} onChange={e => setCustomerInfo({...customerInfo, city: e.target.value})} /><Input label="Code postal" required value={customerInfo.postalCode} onChange={e => setCustomerInfo({...customerInfo, postalCode: e.target.value})} /></div><Button type="submit" className="w-full mt-6">Continuer vers le paiement <ArrowRight size={16} /></Button></div>)}
+                            {step === 2 && (<div className="animate-fadeIn"><h2 className="font-editorial text-2xl text-emerald-950 mb-6">Paiement</h2><div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-6"><p className="text-yellow-800 text-sm">Mode demo : le paiement est simule. Cliquez sur "Confirmer" pour valider.</p></div><div className="bg-stone-50 rounded-2xl p-6 mb-6"><div className="flex items-center gap-3 mb-4"><CreditCard size={24} className="text-emerald-700" /><span className="font-medium">Carte bancaire</span></div><Input label="Numero de carte" placeholder="**** **** **** ****" /><div className="grid grid-cols-2 gap-4"><Input label="Date d'expiration" placeholder="MM/AA" /><Input label="CVV" placeholder="***" /></div></div><div className="flex gap-4"><Button type="button" variant="secondary" onClick={() => setStep(1)}><ArrowLeft size={16} /> Retour</Button><Button type="submit" className="flex-1">Confirmer la commande <Check size={16} /></Button></div></div>)}
+                        </form>
+                    </div>
+                    <div className="lg:col-span-1"><div className="bg-stone-50 rounded-3xl p-6 sticky top-32"><h3 className="font-editorial text-xl text-emerald-950 mb-4">Votre commande</h3><div className="space-y-4 mb-6">{cart.map(item => (<div key={item.id} className="flex gap-3"><img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-xl" /><div className="flex-1"><p className="font-medium text-stone-900">{item.name}</p><p className="text-sm text-stone-500">x{item.quantity}</p></div><p className="font-medium">{(item.price * item.quantity).toFixed(2)} EUR</p></div>))}</div><div className="border-t border-stone-200 pt-4 space-y-2"><div className="flex justify-between text-stone-600"><span>Sous-total</span><span>{cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)} EUR</span></div>{appliedPromo && (<div className="flex justify-between text-emerald-600"><span>Reduction ({appliedPromo.code})</span><span>-{appliedPromo.discount}{appliedPromo.type === 'percent' ? '%' : ' EUR'}</span></div>)}<div className="flex justify-between text-stone-600"><span>Livraison</span><span>Gratuite</span></div><div className="flex justify-between text-xl font-bold text-emerald-900 pt-2 border-t border-stone-200"><span>Total</span><span>{getDiscountedTotal().toFixed(2)} EUR</span></div></div></div></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// PAGE LOGIN
+const LoginPage = () => {
+    const { setIsAdmin, setPage, showNotification } = useApp();
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const handleLogin = (e) => { e.preventDefault(); if (email === 'admin@greenez.fr' && password === 'admin123') { setIsAdmin(true); setPage('admin'); showNotification('Connexion reussie !'); } else { showNotification('Identifiants incorrects', 'error'); } };
+    return (
+        <div className="min-h-screen pt-32 pb-24 flex items-center justify-center">
+            <div className="max-w-md w-full mx-4">
+                <div className="bg-white rounded-3xl shadow-xl p-8">
+                    <div className="text-center mb-8"><div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4"><User size={32} className="text-emerald-700" /></div><h1 className="font-editorial text-3xl text-emerald-950">Espace Admin</h1><p className="text-stone-500 mt-2">Connectez-vous pour gerer votre boutique</p></div>
+                    <form onSubmit={handleLogin}><Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="admin@greenez.fr" /><Input label="Mot de passe" type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="admin123" /><Button type="submit" className="w-full mt-4">Se connecter <ArrowRight size={16} /></Button></form>
+                    <div className="mt-6 p-4 bg-stone-50 rounded-xl"><p className="text-xs text-stone-500 text-center">Compte demo:<br/><strong>admin@greenez.fr</strong> / <strong>admin123</strong></p></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ADMIN DASHBOARD
+const AdminDashboard = () => {
+    const { isAdmin, setIsAdmin, setPage, products, events, promos, orders, categories, addProduct, updateProduct, deleteProduct, addEvent, updateEvent, deleteEvent, addPromo, updatePromo, deletePromo, updateOrderStatus } = useApp();
+    const [activeTab, setActiveTab] = useState('overview');
+    const [editingItem, setEditingItem] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [modalType, setModalType] = useState(null);
+    if (!isAdmin) { setPage('login'); return null; }
+    const openModal = (type, item = null) => { setModalType(type); setEditingItem(item); setShowModal(true); };
+    const closeModal = () => { setShowModal(false); setEditingItem(null); setModalType(null); };
+    const stats = { totalProducts: products.length, activeProducts: products.filter(p => p.active).length, totalOrders: orders.length, pendingOrders: orders.filter(o => o.status === 'pending').length, revenue: orders.reduce((sum, o) => sum + o.total, 0), activePromos: promos.filter(p => p.active).length };
+
+    return (
+        <div className="min-h-screen bg-stone-100">
+            <div className="bg-emerald-900 text-white py-4 px-6 flex justify-between items-center"><div className="flex items-center gap-4"><div className="flex items-center gap-2"><Leaf size={20} /><span className="font-editorial text-xl">Greenez Vous</span></div><span className="text-emerald-300 text-sm">| Administration</span></div><div className="flex items-center gap-4"><Button variant="secondary" size="sm" className="text-white border-white/30 hover:bg-white/10" onClick={() => setPage('home')}><Eye size={16} /> Voir le site</Button><Button variant="secondary" size="sm" className="text-white border-white/30 hover:bg-white/10" onClick={() => { setIsAdmin(false); setPage('home'); }}>Deconnexion</Button></div></div>
+            <div className="flex">
+                <div className="w-64 bg-white min-h-[calc(100vh-64px)] shadow-sm p-4"><nav className="space-y-2"><button onClick={() => setActiveTab('overview')} className={"w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition " + (activeTab === 'overview' ? 'bg-emerald-50 text-emerald-800' : 'text-stone-600 hover:bg-stone-50')}><BarChart size={20} /> Vue d'ensemble</button><button onClick={() => setActiveTab('products')} className={"w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition " + (activeTab === 'products' ? 'bg-emerald-50 text-emerald-800' : 'text-stone-600 hover:bg-stone-50')}><Package size={20} /> Produits</button><button onClick={() => setActiveTab('orders')} className={"w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition " + (activeTab === 'orders' ? 'bg-emerald-50 text-emerald-800' : 'text-stone-600 hover:bg-stone-50')}><ShoppingCart size={20} /> Commandes {stats.pendingOrders > 0 && <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{stats.pendingOrders}</span>}</button><button onClick={() => setActiveTab('events')} className={"w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition " + (activeTab === 'events' ? 'bg-emerald-50 text-emerald-800' : 'text-stone-600 hover:bg-stone-50')}><Calendar size={20} /> Evenements</button><button onClick={() => setActiveTab('promos')} className={"w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition " + (activeTab === 'promos' ? 'bg-emerald-50 text-emerald-800' : 'text-stone-600 hover:bg-stone-50')}><Tag size={20} /> Codes Promo</button></nav></div>
+                <div className="flex-1 p-8">
+                    {activeTab === 'overview' && (<div className="animate-fadeIn"><h2 className="font-editorial text-3xl text-emerald-950 mb-8">Vue d'ensemble</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"><div className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex items-center justify-between mb-4"><Package size={24} className="text-emerald-600" /><span className="text-xs text-stone-500">Produits</span></div><p className="text-3xl font-bold text-stone-900">{stats.activeProducts}</p><p className="text-sm text-stone-500">sur {stats.totalProducts} au total</p></div><div className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex items-center justify-between mb-4"><ShoppingCart size={24} className="text-blue-600" /><span className="text-xs text-stone-500">Commandes</span></div><p className="text-3xl font-bold text-stone-900">{stats.totalOrders}</p><p className="text-sm text-stone-500">{stats.pendingOrders} en attente</p></div><div className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex items-center justify-between mb-4"><CreditCard size={24} className="text-green-600" /><span className="text-xs text-stone-500">Chiffre d'affaires</span></div><p className="text-3xl font-bold text-stone-900">{stats.revenue.toFixed(2)} EUR</p><p className="text-sm text-stone-500">total</p></div><div className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex items-center justify-between mb-4"><Tag size={24} className="text-purple-600" /><span className="text-xs text-stone-500">Promos actives</span></div><p className="text-3xl font-bold text-stone-900">{stats.activePromos}</p><p className="text-sm text-stone-500">codes actifs</p></div></div><div className="bg-white rounded-2xl p-6 shadow-sm"><h3 className="font-editorial text-xl text-emerald-950 mb-4">Dernieres commandes</h3>{orders.length === 0 ? <p className="text-stone-500 text-center py-8">Aucune commande</p> : (<div className="space-y-4">{orders.slice(-5).reverse().map(order => (<div key={order.id} className="flex items-center justify-between p-4 bg-stone-50 rounded-xl"><div><p className="font-medium">{order.customer.firstName} {order.customer.lastName}</p><p className="text-sm text-stone-500">{new Date(order.date).toLocaleDateString('fr-FR')}</p></div><div className="text-right"><p className="font-bold text-emerald-900">{order.total.toFixed(2)} EUR</p><span className={"text-xs px-2 py-1 rounded-full " + (order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : order.status === 'shipped' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800')}>{order.status === 'pending' ? 'En attente' : order.status === 'shipped' ? 'Expediee' : 'Livree'}</span></div></div>))}</div>)}</div></div>)}
+                    {activeTab === 'products' && (<div className="animate-fadeIn"><div className="flex justify-between items-center mb-8"><h2 className="font-editorial text-3xl text-emerald-950">Produits</h2><Button onClick={() => openModal('product')}><Plus size={16} /> Ajouter un produit</Button></div><div className="bg-white rounded-2xl shadow-sm overflow-hidden"><table className="w-full"><thead className="bg-stone-50"><tr><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Produit</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Prix</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Stock</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Statut</th><th className="text-right px-6 py-4 text-sm font-medium text-stone-600">Actions</th></tr></thead><tbody className="divide-y divide-stone-100">{products.map(product => (<tr key={product.id} className="hover:bg-stone-50"><td className="px-6 py-4"><div className="flex items-center gap-3"><img src={product.image} alt={product.name} className="w-12 h-12 rounded-lg object-cover" /><div><p className="font-medium text-stone-900">{product.name}</p><p className="text-sm text-stone-500">{product.subtitle}</p></div></div></td><td className="px-6 py-4 font-medium">{product.price.toFixed(2)} EUR</td><td className="px-6 py-4">{product.stock}</td><td className="px-6 py-4"><span className={"text-xs px-2 py-1 rounded-full " + (product.active ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-600')}>{product.active ? 'Actif' : 'Inactif'}</span></td><td className="px-6 py-4 text-right"><button onClick={() => openModal('product', product)} className="p-2 hover:bg-stone-100 rounded-lg text-stone-600"><Edit size={18} /></button><button onClick={() => deleteProduct(product.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash size={18} /></button></td></tr>))}</tbody></table></div></div>)}
+                    {activeTab === 'orders' && (<div className="animate-fadeIn"><h2 className="font-editorial text-3xl text-emerald-950 mb-8">Commandes</h2>{orders.length === 0 ? (<div className="bg-white rounded-2xl p-12 text-center shadow-sm"><ShoppingCart size={48} className="mx-auto text-stone-300 mb-4" /><p className="text-stone-500">Aucune commande</p></div>) : (<div className="space-y-4">{orders.slice().reverse().map(order => (<div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm"><div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4"><div><p className="text-sm text-stone-500">Commande #{order.id}</p><p className="font-medium text-lg">{order.customer.firstName} {order.customer.lastName}</p><p className="text-sm text-stone-500">{order.customer.email}</p></div><select value={order.status} onChange={e => updateOrderStatus(order.id, e.target.value)} className="px-4 py-2 border border-stone-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"><option value="pending">En attente</option><option value="shipped">Expediee</option><option value="delivered">Livree</option></select></div><div className="border-t border-stone-100 pt-4"><div className="flex flex-wrap gap-4 mb-4">{order.items.map(item => (<div key={item.id} className="flex items-center gap-2 bg-stone-50 rounded-lg p-2"><img src={item.image} alt={item.name} className="w-10 h-10 rounded object-cover" /><div><p className="text-sm font-medium">{item.name}</p><p className="text-xs text-stone-500">x{item.quantity}</p></div></div>))}</div><div className="flex justify-between items-center"><div className="text-sm text-stone-500"><p>{order.customer.address}, {order.customer.postalCode} {order.customer.city}</p><p>{new Date(order.date).toLocaleDateString('fr-FR')}</p></div><div className="text-right">{order.promoUsed && <p className="text-sm text-emerald-600">Code: {order.promoUsed}</p>}<p className="text-xl font-bold text-emerald-900">{order.total.toFixed(2)} EUR</p></div></div></div></div>))}</div>)}</div>)}
+                    {activeTab === 'events' && (<div className="animate-fadeIn"><div className="flex justify-between items-center mb-8"><h2 className="font-editorial text-3xl text-emerald-950">Evenements</h2><Button onClick={() => openModal('event')}><Plus size={16} /> Ajouter</Button></div><div className="grid gap-4">{events.map(event => (<div key={event.id} className="bg-white rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4"><div className="flex items-start gap-4"><div className="text-center bg-emerald-50 rounded-xl p-3 min-w-[70px]"><div className="text-2xl font-bold text-emerald-900">{new Date(event.date).getDate()}</div><div className="text-xs text-emerald-700 uppercase">{new Date(event.date).toLocaleDateString('fr-FR', { month: 'short' })}</div></div><div><h3 className="font-medium text-lg text-stone-900">{event.title}</h3><p className="text-stone-600 text-sm mb-1">{event.description}</p><p className="text-stone-500 text-sm flex items-center gap-1"><MapPin size={14} /> {event.location}</p></div></div><div className="flex items-center gap-2"><span className={"text-xs px-2 py-1 rounded-full " + (event.active ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-600')}>{event.active ? 'Actif' : 'Inactif'}</span><button onClick={() => openModal('event', event)} className="p-2 hover:bg-stone-100 rounded-lg text-stone-600"><Edit size={18} /></button><button onClick={() => deleteEvent(event.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash size={18} /></button></div></div>))}</div></div>)}
+                    {activeTab === 'promos' && (<div className="animate-fadeIn"><div className="flex justify-between items-center mb-8"><h2 className="font-editorial text-3xl text-emerald-950">Codes Promo</h2><Button onClick={() => openModal('promo')}><Plus size={16} /> Ajouter</Button></div><div className="bg-white rounded-2xl shadow-sm overflow-hidden"><table className="w-full"><thead className="bg-stone-50"><tr><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Code</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Reduction</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Min.</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Utilisations</th><th className="text-left px-6 py-4 text-sm font-medium text-stone-600">Statut</th><th className="text-right px-6 py-4 text-sm font-medium text-stone-600">Actions</th></tr></thead><tbody className="divide-y divide-stone-100">{promos.map(promo => (<tr key={promo.id} className="hover:bg-stone-50"><td className="px-6 py-4 font-mono font-bold text-emerald-700">{promo.code}</td><td className="px-6 py-4">{promo.discount}{promo.type === 'percent' ? '%' : ' EUR'}</td><td className="px-6 py-4">{promo.minOrder > 0 ? promo.minOrder + ' EUR' : '-'}</td><td className="px-6 py-4">{promo.usageCount} / {promo.maxUsage}</td><td className="px-6 py-4"><span className={"text-xs px-2 py-1 rounded-full " + (promo.active ? 'bg-green-100 text-green-800' : 'bg-stone-100 text-stone-600')}>{promo.active ? 'Actif' : 'Inactif'}</span></td><td className="px-6 py-4 text-right"><button onClick={() => openModal('promo', promo)} className="p-2 hover:bg-stone-100 rounded-lg text-stone-600"><Edit size={18} /></button><button onClick={() => deletePromo(promo.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Trash size={18} /></button></td></tr>))}</tbody></table></div></div>)}
+                </div>
+            </div>
+            <Modal isOpen={showModal && modalType === 'product'} onClose={closeModal} title={editingItem ? 'Modifier le produit' : 'Nouveau produit'}><ProductForm product={editingItem} onSave={editingItem ? (data) => { updateProduct(editingItem.id, data); closeModal(); } : (data) => { addProduct(data); closeModal(); }} categories={categories} onCancel={closeModal} /></Modal>
+            <Modal isOpen={showModal && modalType === 'event'} onClose={closeModal} title={editingItem ? "Modifier l'evenement" : 'Nouvel evenement'}><EventForm event={editingItem} onSave={editingItem ? (data) => { updateEvent(editingItem.id, data); closeModal(); } : (data) => { addEvent(data); closeModal(); }} onCancel={closeModal} /></Modal>
+            <Modal isOpen={showModal && modalType === 'promo'} onClose={closeModal} title={editingItem ? 'Modifier le code promo' : 'Nouveau code promo'}><PromoForm promo={editingItem} onSave={editingItem ? (data) => { updatePromo(editingItem.id, data); closeModal(); } : (data) => { addPromo(data); closeModal(); }} onCancel={closeModal} /></Modal>
+        </div>
+    );
+};
+
+// FORMULAIRES ADMIN
+const ProductForm = ({ product, onSave, categories, onCancel }) => {
+    const [form, setForm] = useState(product ? { ...product, price: String(product.price), stock: String(product.stock) } : { name: '', subtitle: '', description: '', price: '', stock: '', categoryId: categories[0]?.id || '', image: '', tag: '', active: true });
+    const handleSubmit = (e) => { e.preventDefault(); onSave({ ...form, price: parseFloat(form.price), stock: parseInt(form.stock), categoryId: parseInt(form.categoryId) }); };
+    return (<form onSubmit={handleSubmit}><Input label="Nom" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} /><Input label="Sous-titre" value={form.subtitle} onChange={e => setForm({...form, subtitle: e.target.value})} /><Textarea label="Description" value={form.description} onChange={e => setForm({...form, description: e.target.value})} /><div className="grid grid-cols-2 gap-4"><Input label="Prix (EUR)" type="number" step="0.01" required value={form.price} onChange={e => setForm({...form, price: e.target.value})} /><Input label="Stock" type="number" required value={form.stock} onChange={e => setForm({...form, stock: e.target.value})} /></div><Select label="Categorie" value={form.categoryId} onChange={e => setForm({...form, categoryId: e.target.value})} options={categories.map(c => ({ value: c.id, label: c.name }))} /><Input label="URL Image" value={form.image} onChange={e => setForm({...form, image: e.target.value})} placeholder="https://..." /><Input label="Tag (optionnel)" value={form.tag || ''} onChange={e => setForm({...form, tag: e.target.value})} placeholder="Best-seller, Nouveau..." /><label className="flex items-center gap-2 mb-4 cursor-pointer"><input type="checkbox" checked={form.active} onChange={e => setForm({...form, active: e.target.checked})} className="w-4 h-4 text-emerald-600 rounded" /><span className="text-sm text-stone-700">Produit actif</span></label><div className="flex gap-4"><Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button><Button type="submit" className="flex-1">{product ? 'Enregistrer' : 'Ajouter'}</Button></div></form>);
+};
+const EventForm = ({ event, onSave, onCancel }) => {
+    const [form, setForm] = useState(event || { title: '', description: '', date: '', location: '', active: true });
+    const handleSubmit = (e) => { e.preventDefault(); onSave(form); };
+    return (<form onSubmit={handleSubmit}><Input label="Titre" required value={form.title} onChange={e => setForm({...form, title: e.target.value})} /><Textarea label="Description" value={form.description} onChange={e => setForm({...form, description: e.target.value})} /><Input label="Date" type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} /><Input label="Lieu" required value={form.location} onChange={e => setForm({...form, location: e.target.value})} /><label className="flex items-center gap-2 mb-4 cursor-pointer"><input type="checkbox" checked={form.active} onChange={e => setForm({...form, active: e.target.checked})} className="w-4 h-4 text-emerald-600 rounded" /><span className="text-sm text-stone-700">Evenement actif</span></label><div className="flex gap-4"><Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button><Button type="submit" className="flex-1">{event ? 'Enregistrer' : 'Ajouter'}</Button></div></form>);
+};
+const PromoForm = ({ promo, onSave, onCancel }) => {
+    const [form, setForm] = useState(promo ? { ...promo, discount: String(promo.discount), minOrder: String(promo.minOrder), maxUsage: String(promo.maxUsage) } : { code: '', discount: '', type: 'percent', minOrder: '0', maxUsage: '100', active: true });
+    const handleSubmit = (e) => { e.preventDefault(); onSave({ ...form, code: form.code.toUpperCase(), discount: parseFloat(form.discount), minOrder: parseFloat(form.minOrder), maxUsage: parseInt(form.maxUsage) }); };
+    return (<form onSubmit={handleSubmit}><Input label="Code" required value={form.code} onChange={e => setForm({...form, code: e.target.value.toUpperCase()})} placeholder="PROMO2024" /><div className="grid grid-cols-2 gap-4"><Input label="Reduction" type="number" step="0.01" required value={form.discount} onChange={e => setForm({...form, discount: e.target.value})} /><Select label="Type" value={form.type} onChange={e => setForm({...form, type: e.target.value})} options={[{ value: 'percent', label: 'Pourcentage (%)' }, { value: 'fixed', label: 'Montant fixe (EUR)' }]} /></div><div className="grid grid-cols-2 gap-4"><Input label="Commande min. (EUR)" type="number" value={form.minOrder} onChange={e => setForm({...form, minOrder: e.target.value})} /><Input label="Utilisations max." type="number" required value={form.maxUsage} onChange={e => setForm({...form, maxUsage: e.target.value})} /></div><label className="flex items-center gap-2 mb-4 cursor-pointer"><input type="checkbox" checked={form.active} onChange={e => setForm({...form, active: e.target.checked})} className="w-4 h-4 text-emerald-600 rounded" /><span className="text-sm text-stone-700">Code actif</span></label><div className="flex gap-4"><Button type="button" variant="secondary" onClick={onCancel}>Annuler</Button><Button type="submit" className="flex-1">{promo ? 'Enregistrer' : 'Ajouter'}</Button></div></form>);
+};
+
+// APP
+const App = () => {
+    const { page } = useApp();
+    const renderPage = () => { switch(page) { case 'shop': return <ShopPage />; case 'product': return <ProductPage />; case 'events': return <EventsPage />; case 'about': return <AboutPage />; case 'checkout': return <CheckoutPage />; case 'login': return <LoginPage />; case 'admin': return <AdminDashboard />; default: return <HomePage />; } };
+    return (<div className="min-h-screen overflow-x-hidden">{page !== 'admin' && <Navigation />}{renderPage()}<CartSidebar /><Notification /></div>);
+};
+const AppWrapper = () => (<AppProvider><App /></AppProvider>);
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<AppWrapper />);
+    </script>
+</body>
+</html>
