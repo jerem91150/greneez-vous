@@ -71,6 +71,15 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Configuration API -->
+    <script>
+        // MODE: 'demo' = localStorage | 'production' = API backend
+        window.GREENEZ_MODE = 'demo';
+        window.API_BASE = '/api';
+    </script>
+    <!-- API Client (pour mode production) -->
+    <script src="api.js"></script>
 </head>
 <body class="bg-[#FDFCF8] text-stone-800 antialiased selection:bg-emerald-200 selection:text-emerald-900">
     <div id="root"></div>
@@ -307,6 +316,8 @@ const initialActualites = [
 // HELPERS
 const getStoredData = (key, defaultValue) => { try { const stored = localStorage.getItem(key); return stored ? JSON.parse(stored) : defaultValue; } catch { return defaultValue; } };
 const setStoredData = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch {} };
+const isProductionMode = () => window.GREENEZ_MODE === 'production';
+const getAPI = () => window.GreenezAPI;
 
 // CONTEXTE
 const AppContext = createContext();
@@ -316,12 +327,14 @@ const AppProvider = ({ children }) => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedLegalPage, setSelectedLegalPage] = useState(null);
     const [cart, setCart] = useState(() => getStoredData('greenez_cart', []));
-    const [products, setProducts] = useState(() => getStoredData('greenez_products', initialProducts));
-    const [categories] = useState(initialCategories);
-    const [events, setEvents] = useState(() => getStoredData('greenez_events', initialEvents));
-    const [promos, setPromos] = useState(() => getStoredData('greenez_promos', initialPromos));
-    const [orders, setOrders] = useState(() => getStoredData('greenez_orders', []));
-    const [reviews, setReviews] = useState(() => getStoredData('greenez_reviews', initialReviews));
+    const [products, setProducts] = useState(() => isProductionMode() ? [] : getStoredData('greenez_products', initialProducts));
+    const [categories, setCategories] = useState(isProductionMode() ? [] : initialCategories);
+    const [apiLoading, setApiLoading] = useState(isProductionMode());
+    const [apiError, setApiError] = useState(null);
+    const [events, setEvents] = useState(() => isProductionMode() ? [] : getStoredData('greenez_events', initialEvents));
+    const [promos, setPromos] = useState(() => isProductionMode() ? [] : getStoredData('greenez_promos', initialPromos));
+    const [orders, setOrders] = useState(() => isProductionMode() ? [] : getStoredData('greenez_orders', []));
+    const [reviews, setReviews] = useState(() => isProductionMode() ? [] : getStoredData('greenez_reviews', initialReviews));
     const [siteContent, setSiteContent] = useState(() => getStoredData('greenez_content', initialSiteContent));
     const [legalPages, setLegalPages] = useState(() => getStoredData('greenez_legal', initialLegalPages));
     const [cookiesAccepted, setCookiesAccepted] = useState(() => getStoredData('greenez_cookies', null));
@@ -330,30 +343,71 @@ const AppProvider = ({ children }) => {
     const [notification, setNotification] = useState(null);
     const [appliedPromo, setAppliedPromo] = useState(null);
     const [searchOpen, setSearchOpen] = useState(false);
-    const [shippingOptions, setShippingOptions] = useState(() => getStoredData('greenez_shipping', initialShippingOptions));
+    const [shippingOptions, setShippingOptions] = useState(() => isProductionMode() ? [] : getStoredData('greenez_shipping', initialShippingOptions));
     const [selectedShipping, setSelectedShipping] = useState(null);
-    const [newsletterSubscribers, setNewsletterSubscribers] = useState(() => getStoredData('greenez_newsletter', initialNewsletterSubscribers));
+    const [newsletterSubscribers, setNewsletterSubscribers] = useState(() => isProductionMode() ? [] : getStoredData('greenez_newsletter', initialNewsletterSubscribers));
     const [newsletterPopupShown, setNewsletterPopupShown] = useState(() => getStoredData('greenez_newsletter_shown', false));
-    const [actualites, setActualites] = useState(() => getStoredData('greenez_actualites', initialActualites));
+    const [actualites, setActualites] = useState(() => isProductionMode() ? [] : getStoredData('greenez_actualites', initialActualites));
     const [favorites, setFavorites] = useState(() => getStoredData('greenez_favorites', []));
     const [users, setUsers] = useState(() => getStoredData('greenez_users', []));
     const [currentUser, setCurrentUser] = useState(() => getStoredData('greenez_current_user', null));
     const [emailLogs, setEmailLogs] = useState(() => getStoredData('greenez_email_logs', []));
 
+    // Chargement des donnees depuis l'API en mode production
+    useEffect(() => {
+        if (!isProductionMode()) return;
+        const loadApiData = async () => {
+            try {
+                setApiLoading(true);
+                setApiError(null);
+                const [productsData, categoriesData, eventsData, promosData, reviewsData, shippingData, actualitesData, settingsData] = await Promise.all([
+                    getAPI().products.getAll(false),
+                    getAPI().categories.getAll(),
+                    getAPI().events.getAll(false),
+                    getAPI().promos.getAll(),
+                    getAPI().reviews.getAll(),
+                    getAPI().shipping.getAll(),
+                    getAPI().actualites.getAll(false),
+                    getAPI().settings.getAll()
+                ]);
+                setProducts(productsData || []);
+                setCategories(categoriesData || []);
+                setEvents(eventsData || []);
+                setPromos(promosData || []);
+                setReviews(reviewsData || []);
+                setShippingOptions(shippingData || []);
+                setActualites(actualitesData || []);
+                if (settingsData) setSiteContent(prev => ({ ...prev, ...settingsData }));
+                // Charger les commandes si admin
+                if (isAdmin) {
+                    const ordersData = await getAPI().orders.getAll();
+                    setOrders(ordersData || []);
+                }
+            } catch (error) {
+                console.error('Erreur chargement API:', error);
+                setApiError(error.message);
+            } finally {
+                setApiLoading(false);
+            }
+        };
+        loadApiData();
+    }, [isAdmin]);
+
+    // Sauvegarde localStorage (seulement en mode demo)
     useEffect(() => { setStoredData('greenez_cart', cart); }, [cart]);
     useEffect(() => { setStoredData('greenez_favorites', favorites); }, [favorites]);
-    useEffect(() => { setStoredData('greenez_users', users); }, [users]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_users', users); }, [users]);
     useEffect(() => { setStoredData('greenez_current_user', currentUser); }, [currentUser]);
     useEffect(() => { setStoredData('greenez_email_logs', emailLogs); }, [emailLogs]);
-    useEffect(() => { setStoredData('greenez_actualites', actualites); }, [actualites]);
-    useEffect(() => { setStoredData('greenez_shipping', shippingOptions); }, [shippingOptions]);
-    useEffect(() => { setStoredData('greenez_newsletter', newsletterSubscribers); }, [newsletterSubscribers]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_actualites', actualites); }, [actualites]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_shipping', shippingOptions); }, [shippingOptions]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_newsletter', newsletterSubscribers); }, [newsletterSubscribers]);
     useEffect(() => { setStoredData('greenez_newsletter_shown', newsletterPopupShown); }, [newsletterPopupShown]);
-    useEffect(() => { setStoredData('greenez_products', products); }, [products]);
-    useEffect(() => { setStoredData('greenez_events', events); }, [events]);
-    useEffect(() => { setStoredData('greenez_promos', promos); }, [promos]);
-    useEffect(() => { setStoredData('greenez_orders', orders); }, [orders]);
-    useEffect(() => { setStoredData('greenez_reviews', reviews); }, [reviews]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_products', products); }, [products]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_events', events); }, [events]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_promos', promos); }, [promos]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_orders', orders); }, [orders]);
+    useEffect(() => { if (!isProductionMode()) setStoredData('greenez_reviews', reviews); }, [reviews]);
     useEffect(() => { setStoredData('greenez_content', siteContent); }, [siteContent]);
     useEffect(() => { setStoredData('greenez_legal', legalPages); }, [legalPages]);
     useEffect(() => { setStoredData('greenez_cookies', cookiesAccepted); }, [cookiesAccepted]);
@@ -379,73 +433,221 @@ const AppProvider = ({ children }) => {
         { key: 'shipped', label: 'Expediee', icon: 'truck', color: 'orange' },
         { key: 'delivered', label: 'Livree', icon: 'check-circle', color: 'green' }
     ];
-    const placeOrder = (customerInfo, paymentInfo = null) => {
-        const trackingCode = generateTrackingCode();
-        const now = new Date().toISOString();
+    const placeOrder = async (customerInfo, paymentInfo = null) => {
         const shippingOption = shippingOptions.find(o => o.id === selectedShipping);
         const shippingCost = selectedShipping ? getShippingPrice(selectedShipping) : 0;
         const subtotal = getDiscountedTotal();
         const finalTotal = subtotal + shippingCost;
-        const newOrder = {
-            id: Date.now(),
-            trackingCode,
-            items: [...cart],
-            customer: customerInfo,
-            subtotal,
-            shippingCost,
-            shippingMethod: shippingOption ? shippingOption.name : 'Non specifie',
-            total: finalTotal,
-            promoUsed: appliedPromo?.code || null,
-            promoDiscount: appliedPromo ? (appliedPromo.type === 'percent' ? (cartTotal * appliedPromo.discount / 100) : appliedPromo.discount) : 0,
-            status: 'pending',
-            date: now,
-            statusHistory: [{ status: 'pending', date: now, note: 'Commande recue' }],
-            messages: [],
-            unreadByAdmin: false,
-            unreadByCustomer: false,
-            paymentMethod: paymentInfo?.method || 'Carte bancaire',
-            paymentStatus: 'paid',
-            invoiceNumber: 'GV-' + new Date().getFullYear() + '-' + String(orders.length + 1).padStart(4, '0')
-        };
-        setOrders(prev => [...prev, newOrder]);
-        if (appliedPromo) { setPromos(prev => prev.map(p => p.id === appliedPromo.id ? { ...p, usageCount: p.usageCount + 1 } : p)); }
-        sendEmailNotification('order_confirmation', customerInfo.email, { trackingCode, total: finalTotal.toFixed(2) });
-        clearCart();
-        setSelectedShipping(null);
-        setAppliedPromo(null);
-        showNotification('Commande validee ! Code de suivi: ' + trackingCode);
-        setPage('home');
-        return newOrder;
+
+        if (isProductionMode()) {
+            try {
+                const orderData = {
+                    items: cart.map(item => ({ product_id: item.id, name: item.name, quantity: item.quantity, price: item.price })),
+                    customer: customerInfo,
+                    subtotal,
+                    shippingCost,
+                    shippingMethod: shippingOption ? shippingOption.name : 'Non specifie',
+                    total: finalTotal,
+                    promoCode: appliedPromo?.code || null,
+                    paymentMethod: paymentInfo?.method || 'Carte bancaire',
+                    customerId: currentUser?.id || null
+                };
+                const result = await getAPI().orders.create(orderData);
+                clearCart();
+                setSelectedShipping(null);
+                setAppliedPromo(null);
+                showNotification('Commande validee ! Code de suivi: ' + result.trackingCode);
+                setPage('home');
+                return result;
+            } catch (e) {
+                showNotification('Erreur: ' + e.message, 'error');
+                return null;
+            }
+        } else {
+            const trackingCode = generateTrackingCode();
+            const now = new Date().toISOString();
+            const newOrder = {
+                id: Date.now(),
+                trackingCode,
+                items: [...cart],
+                customer: customerInfo,
+                subtotal,
+                shippingCost,
+                shippingMethod: shippingOption ? shippingOption.name : 'Non specifie',
+                total: finalTotal,
+                promoUsed: appliedPromo?.code || null,
+                promoDiscount: appliedPromo ? (appliedPromo.type === 'percent' ? (cartTotal * appliedPromo.discount / 100) : appliedPromo.discount) : 0,
+                status: 'pending',
+                date: now,
+                statusHistory: [{ status: 'pending', date: now, note: 'Commande recue' }],
+                messages: [],
+                unreadByAdmin: false,
+                unreadByCustomer: false,
+                paymentMethod: paymentInfo?.method || 'Carte bancaire',
+                paymentStatus: 'paid',
+                invoiceNumber: 'GV-' + new Date().getFullYear() + '-' + String(orders.length + 1).padStart(4, '0')
+            };
+            setOrders(prev => [...prev, newOrder]);
+            if (appliedPromo) { setPromos(prev => prev.map(p => p.id === appliedPromo.id ? { ...p, usageCount: p.usageCount + 1 } : p)); }
+            sendEmailNotification('order_confirmation', customerInfo.email, { trackingCode, total: finalTotal.toFixed(2) });
+            clearCart();
+            setSelectedShipping(null);
+            setAppliedPromo(null);
+            showNotification('Commande validee ! Code de suivi: ' + trackingCode);
+            setPage('home');
+            return newOrder;
+        }
     };
 
-    const addProduct = (product) => { setProducts(prev => [...prev, { ...product, id: Date.now(), active: true }]); showNotification('Produit ajoute !'); };
-    const updateProduct = (id, updates) => { setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); showNotification('Produit mis a jour !'); };
-    const deleteProduct = (id) => { setProducts(prev => prev.filter(p => p.id !== id)); showNotification('Produit supprime !'); };
-    const addEvent = (event) => { setEvents(prev => [...prev, { ...event, id: Date.now(), active: true }]); showNotification('Evenement ajoute !'); };
-    const updateEvent = (id, updates) => { setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e)); showNotification('Evenement mis a jour !'); };
-    const deleteEvent = (id) => { setEvents(prev => prev.filter(e => e.id !== id)); showNotification('Evenement supprime !'); };
-    const addPromo = (promo) => { setPromos(prev => [...prev, { ...promo, id: Date.now(), usageCount: 0, active: true }]); showNotification('Code promo ajoute !'); };
-    const updatePromo = (id, updates) => { setPromos(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p)); showNotification('Code promo mis a jour !'); };
-    const deletePromo = (id) => { setPromos(prev => prev.filter(p => p.id !== id)); showNotification('Code promo supprime !'); };
-    const updateOrderStatus = (id, status, note = '') => {
-        const now = new Date().toISOString();
+    const addProduct = async (product) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().products.create(product);
+                setProducts(prev => [...prev, result]);
+                showNotification('Produit ajoute !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setProducts(prev => [...prev, { ...product, id: Date.now(), active: true }]);
+            showNotification('Produit ajoute !');
+        }
+    };
+    const updateProduct = async (id, updates) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().products.update(id, updates);
+                setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+                showNotification('Produit mis a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+            showNotification('Produit mis a jour !');
+        }
+    };
+    const deleteProduct = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().products.delete(id);
+                setProducts(prev => prev.filter(p => p.id !== id));
+                showNotification('Produit supprime !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setProducts(prev => prev.filter(p => p.id !== id));
+            showNotification('Produit supprime !');
+        }
+    };
+    const addEvent = async (event) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().events.create(event);
+                setEvents(prev => [...prev, result]);
+                showNotification('Evenement ajoute !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setEvents(prev => [...prev, { ...event, id: Date.now(), active: true }]);
+            showNotification('Evenement ajoute !');
+        }
+    };
+    const updateEvent = async (id, updates) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().events.update(id, updates);
+                setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+                showNotification('Evenement mis a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+            showNotification('Evenement mis a jour !');
+        }
+    };
+    const deleteEvent = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().events.delete(id);
+                setEvents(prev => prev.filter(e => e.id !== id));
+                showNotification('Evenement supprime !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setEvents(prev => prev.filter(e => e.id !== id));
+            showNotification('Evenement supprime !');
+        }
+    };
+    const addPromo = async (promo) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().promos.create(promo);
+                setPromos(prev => [...prev, result]);
+                showNotification('Code promo ajoute !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setPromos(prev => [...prev, { ...promo, id: Date.now(), usageCount: 0, active: true }]);
+            showNotification('Code promo ajoute !');
+        }
+    };
+    const updatePromo = async (id, updates) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().promos.update(id, updates);
+                setPromos(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+                showNotification('Code promo mis a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setPromos(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+            showNotification('Code promo mis a jour !');
+        }
+    };
+    const deletePromo = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().promos.delete(id);
+                setPromos(prev => prev.filter(p => p.id !== id));
+                showNotification('Code promo supprime !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setPromos(prev => prev.filter(p => p.id !== id));
+            showNotification('Code promo supprime !');
+        }
+    };
+    const updateOrderStatus = async (id, status, note = '') => {
         const statusLabel = orderStatuses.find(s => s.key === status)?.label || status;
         const defaultNote = note || ('Statut: ' + statusLabel);
-        const order = orders.find(o => o.id === id);
-        setOrders(prev => prev.map(o => {
-            if (o.id !== id) return o;
-            const newHistory = [...(o.statusHistory || []), { status, date: now, note: defaultNote }];
-            return { ...o, status, statusHistory: newHistory };
-        }));
-        if (order && status === 'shipped') {
-            sendEmailNotification('order_shipped', order.customer.email, { trackingCode: order.trackingCode });
-        } else if (order && ['confirmed', 'crafting', 'quality', 'packing', 'delivered'].includes(status)) {
-            sendEmailNotification('order_status_update', order.customer.email, { trackingCode: order.trackingCode, status: statusLabel });
+        if (isProductionMode()) {
+            try {
+                await getAPI().orders.updateStatus(id, status, defaultNote);
+                setOrders(prev => prev.map(o => {
+                    if (o.id !== id) return o;
+                    const now = new Date().toISOString();
+                    const newHistory = [...(o.statusHistory || []), { status, date: now, note: defaultNote }];
+                    return { ...o, status, statusHistory: newHistory };
+                }));
+                showNotification('Statut mis a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            const now = new Date().toISOString();
+            const order = orders.find(o => o.id === id);
+            setOrders(prev => prev.map(o => {
+                if (o.id !== id) return o;
+                const newHistory = [...(o.statusHistory || []), { status, date: now, note: defaultNote }];
+                return { ...o, status, statusHistory: newHistory };
+            }));
+            if (order && status === 'shipped') {
+                sendEmailNotification('order_shipped', order.customer.email, { trackingCode: order.trackingCode });
+            } else if (order && ['confirmed', 'crafting', 'quality', 'packing', 'delivered'].includes(status)) {
+                sendEmailNotification('order_status_update', order.customer.email, { trackingCode: order.trackingCode, status: statusLabel });
+            }
+            showNotification('Statut mis a jour !');
         }
-        showNotification('Statut mis a jour !');
     };
-    const getOrderByTracking = (trackingCode, email) => {
-        return orders.find(o => o.trackingCode === trackingCode && o.customer.email.toLowerCase() === email.toLowerCase());
+    const getOrderByTracking = async (trackingCode, email) => {
+        if (isProductionMode()) {
+            try {
+                return await getAPI().orders.getByTracking(trackingCode, email);
+            } catch (e) {
+                console.error('Erreur suivi commande:', e);
+                return null;
+            }
+        } else {
+            return orders.find(o => o.trackingCode === trackingCode && o.customer.email.toLowerCase() === email.toLowerCase());
+        }
     };
     const addMessageToOrder = (orderId, message, sender) => {
         const now = new Date().toISOString();
@@ -475,9 +677,42 @@ const AppProvider = ({ children }) => {
     const getUnreadMessagesCount = () => orders.filter(o => o.unreadByAdmin).length;
 
     // Reviews functions
-    const addReview = (review) => { setReviews(prev => [...prev, { ...review, id: Date.now(), date: new Date().toISOString().split('T')[0], approved: false }]); showNotification('Merci pour votre avis ! Il sera publie apres validation.'); };
-    const approveReview = (id) => { setReviews(prev => prev.map(r => r.id === id ? { ...r, approved: true } : r)); showNotification('Avis approuve !'); };
-    const deleteReview = (id) => { setReviews(prev => prev.filter(r => r.id !== id)); showNotification('Avis supprime !'); };
+    const addReview = async (review) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().reviews.create(review);
+                setReviews(prev => [...prev, result]);
+                showNotification('Merci pour votre avis ! Il sera publie apres validation.');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setReviews(prev => [...prev, { ...review, id: Date.now(), date: new Date().toISOString().split('T')[0], approved: false }]);
+            showNotification('Merci pour votre avis ! Il sera publie apres validation.');
+        }
+    };
+    const approveReview = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().reviews.approve(id);
+                setReviews(prev => prev.map(r => r.id === id ? { ...r, approved: true } : r));
+                showNotification('Avis approuve !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setReviews(prev => prev.map(r => r.id === id ? { ...r, approved: true } : r));
+            showNotification('Avis approuve !');
+        }
+    };
+    const deleteReview = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().reviews.delete(id);
+                setReviews(prev => prev.filter(r => r.id !== id));
+                showNotification('Avis supprime !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setReviews(prev => prev.filter(r => r.id !== id));
+            showNotification('Avis supprime !');
+        }
+    };
     const getProductReviews = (productId) => reviews.filter(r => r.productId === productId && r.approved);
     const getProductRating = (productId) => { const productReviews = getProductReviews(productId); if (productReviews.length === 0) return 0; return productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length; };
 
@@ -504,27 +739,113 @@ const AppProvider = ({ children }) => {
         const shipping = selectedShipping ? getShippingPrice(selectedShipping) : 0;
         return subtotal + shipping;
     };
-    const updateShippingOption = (id, updates) => { setShippingOptions(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o)); showNotification('Option de livraison mise a jour !'); };
-    const addShippingOption = (option) => { setShippingOptions(prev => [...prev, { ...option, id: Date.now(), active: true }]); showNotification('Option de livraison ajoutee !'); };
-    const deleteShippingOption = (id) => { setShippingOptions(prev => prev.filter(o => o.id !== id)); showNotification('Option de livraison supprimee !'); };
+    const updateShippingOption = async (id, updates) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().shipping.update(id, updates);
+                setShippingOptions(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
+                showNotification('Option de livraison mise a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setShippingOptions(prev => prev.map(o => o.id === id ? { ...o, ...updates } : o));
+            showNotification('Option de livraison mise a jour !');
+        }
+    };
+    const addShippingOption = async (option) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().shipping.create(option);
+                setShippingOptions(prev => [...prev, result]);
+                showNotification('Option de livraison ajoutee !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setShippingOptions(prev => [...prev, { ...option, id: Date.now(), active: true }]);
+            showNotification('Option de livraison ajoutee !');
+        }
+    };
+    const deleteShippingOption = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().shipping.delete(id);
+                setShippingOptions(prev => prev.filter(o => o.id !== id));
+                showNotification('Option de livraison supprimee !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setShippingOptions(prev => prev.filter(o => o.id !== id));
+            showNotification('Option de livraison supprimee !');
+        }
+    };
 
     // Newsletter functions
-    const subscribeToNewsletter = (email, firstName = '') => {
+    const subscribeToNewsletter = async (email, firstName = '') => {
         if (newsletterSubscribers.find(s => s.email.toLowerCase() === email.toLowerCase())) {
             showNotification('Cet email est deja inscrit !', 'error');
             return false;
         }
-        setNewsletterSubscribers(prev => [...prev, { id: Date.now(), email, firstName, date: new Date().toISOString(), active: true }]);
-        sendEmailNotification('newsletter_welcome', email, { firstName: firstName || 'cher(e) client(e)' });
-        showNotification('Merci pour votre inscription !');
-        return true;
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().newsletter.subscribe(email, firstName);
+                setNewsletterSubscribers(prev => [...prev, result]);
+                showNotification('Merci pour votre inscription !');
+                return true;
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); return false; }
+        } else {
+            setNewsletterSubscribers(prev => [...prev, { id: Date.now(), email, firstName, date: new Date().toISOString(), active: true }]);
+            sendEmailNotification('newsletter_welcome', email, { firstName: firstName || 'cher(e) client(e)' });
+            showNotification('Merci pour votre inscription !');
+            return true;
+        }
     };
-    const unsubscribeNewsletter = (id) => { setNewsletterSubscribers(prev => prev.filter(s => s.id !== id)); showNotification('Desabonne !'); };
+    const unsubscribeNewsletter = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().newsletter.unsubscribe(id);
+                setNewsletterSubscribers(prev => prev.filter(s => s.id !== id));
+                showNotification('Desabonne !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setNewsletterSubscribers(prev => prev.filter(s => s.id !== id));
+            showNotification('Desabonne !');
+        }
+    };
 
     // Actualites functions
-    const addActualite = (actualite) => { setActualites(prev => [...prev, { ...actualite, id: Date.now(), date: new Date().toISOString().split('T')[0], active: true }]); showNotification('Actualite ajoutee !'); };
-    const updateActualite = (id, updates) => { setActualites(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a)); showNotification('Actualite mise a jour !'); };
-    const deleteActualite = (id) => { setActualites(prev => prev.filter(a => a.id !== id)); showNotification('Actualite supprimee !'); };
+    const addActualite = async (actualite) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().actualites.create(actualite);
+                setActualites(prev => [...prev, result]);
+                showNotification('Actualite ajoutee !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setActualites(prev => [...prev, { ...actualite, id: Date.now(), date: new Date().toISOString().split('T')[0], active: true }]);
+            showNotification('Actualite ajoutee !');
+        }
+    };
+    const updateActualite = async (id, updates) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().actualites.update(id, updates);
+                setActualites(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+                showNotification('Actualite mise a jour !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setActualites(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+            showNotification('Actualite mise a jour !');
+        }
+    };
+    const deleteActualite = async (id) => {
+        if (isProductionMode()) {
+            try {
+                await getAPI().actualites.delete(id);
+                setActualites(prev => prev.filter(a => a.id !== id));
+                showNotification('Actualite supprimee !');
+            } catch (e) { showNotification('Erreur: ' + e.message, 'error'); }
+        } else {
+            setActualites(prev => prev.filter(a => a.id !== id));
+            showNotification('Actualite supprimee !');
+        }
+    };
     const getActiveActualites = () => actualites.filter(a => a.active).sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Favorites functions
@@ -592,60 +913,108 @@ const AppProvider = ({ children }) => {
     const clearEmailLogs = () => setEmailLogs([]);
 
     // User account functions
-    const registerUser = (userData) => {
-        const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
-        if (existingUser) {
-            showNotification('Un compte existe deja avec cet email', 'error');
-            return false;
-        }
-        const newUser = {
-            id: Date.now(),
-            email: userData.email,
-            password: userData.password,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            phone: userData.phone || '',
-            address: userData.address || '',
-            city: userData.city || '',
-            postalCode: userData.postalCode || '',
-            country: 'France',
-            createdAt: new Date().toISOString()
-        };
-        setUsers(prev => [...prev, newUser]);
-        setCurrentUser({ ...newUser, password: undefined });
-        sendEmailNotification('account_created', newUser.email, { firstName: newUser.firstName });
-        showNotification('Compte cree avec succes !');
-        return true;
-    };
-    const loginUser = (email, password) => {
-        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-        if (user) {
-            setCurrentUser({ ...user, password: undefined });
-            showNotification('Connexion reussie !');
+    const registerUser = async (userData) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().auth.registerCustomer(userData);
+                setCurrentUser(result.user);
+                showNotification('Compte cree avec succes !');
+                return true;
+            } catch (e) {
+                showNotification(e.message || 'Erreur lors de l\'inscription', 'error');
+                return false;
+            }
+        } else {
+            const existingUser = users.find(u => u.email.toLowerCase() === userData.email.toLowerCase());
+            if (existingUser) {
+                showNotification('Un compte existe deja avec cet email', 'error');
+                return false;
+            }
+            const newUser = {
+                id: Date.now(),
+                email: userData.email,
+                password: userData.password,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                phone: userData.phone || '',
+                address: userData.address || '',
+                city: userData.city || '',
+                postalCode: userData.postalCode || '',
+                country: 'France',
+                createdAt: new Date().toISOString()
+            };
+            setUsers(prev => [...prev, newUser]);
+            setCurrentUser({ ...newUser, password: undefined });
+            sendEmailNotification('account_created', newUser.email, { firstName: newUser.firstName });
+            showNotification('Compte cree avec succes !');
             return true;
         }
-        showNotification('Email ou mot de passe incorrect', 'error');
-        return false;
+    };
+    const loginUser = async (email, password) => {
+        if (isProductionMode()) {
+            try {
+                const result = await getAPI().auth.loginCustomer(email, password);
+                setCurrentUser(result.user);
+                showNotification('Connexion reussie !');
+                return true;
+            } catch (e) {
+                showNotification(e.message || 'Email ou mot de passe incorrect', 'error');
+                return false;
+            }
+        } else {
+            const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+            if (user) {
+                setCurrentUser({ ...user, password: undefined });
+                showNotification('Connexion reussie !');
+                return true;
+            }
+            showNotification('Email ou mot de passe incorrect', 'error');
+            return false;
+        }
     };
     const logoutUser = () => {
+        if (isProductionMode()) {
+            getAPI().auth.logoutCustomer();
+        }
         setCurrentUser(null);
         showNotification('Deconnexion reussie');
     };
-    const updateUserProfile = (updates) => {
+    const updateUserProfile = async (updates) => {
         if (!currentUser) return false;
-        const updatedUser = { ...currentUser, ...updates };
-        setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...updates } : u));
-        setCurrentUser(updatedUser);
-        showNotification('Profil mis a jour !');
-        return true;
+        if (isProductionMode()) {
+            try {
+                await getAPI().customers.updateProfile(updates);
+                setCurrentUser(prev => ({ ...prev, ...updates }));
+                showNotification('Profil mis a jour !');
+                return true;
+            } catch (e) {
+                showNotification('Erreur: ' + e.message, 'error');
+                return false;
+            }
+        } else {
+            const updatedUser = { ...currentUser, ...updates };
+            setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...updates } : u));
+            setCurrentUser(updatedUser);
+            showNotification('Profil mis a jour !');
+            return true;
+        }
     };
-    const getUserOrders = () => {
+    const getUserOrders = async () => {
         if (!currentUser) return [];
-        return orders.filter(o => o.customer?.email?.toLowerCase() === currentUser.email.toLowerCase());
+        if (isProductionMode()) {
+            try {
+                return await getAPI().customers.getOrders();
+            } catch (e) {
+                console.error('Erreur chargement commandes:', e);
+                return [];
+            }
+        } else {
+            return orders.filter(o => o.customer?.email?.toLowerCase() === currentUser.email.toLowerCase());
+        }
     };
     const isLoggedIn = !!currentUser;
 
-    const value = { page, setPage, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, selectedLegalPage, setSelectedLegalPage, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, cartTotal, cartCount, products, categories, events, promos, orders, reviews, siteContent, legalPages, cookiesAccepted, setCookiesAccepted, isAdmin, setIsAdmin, cartOpen, setCartOpen, searchOpen, setSearchOpen, notification, showNotification, appliedPromo, applyPromoCode, getDiscountedTotal, placeOrder, addProduct, updateProduct, deleteProduct, addEvent, updateEvent, deleteEvent, addPromo, updatePromo, deletePromo, updateOrderStatus, orderStatuses, getOrderByTracking, addMessageToOrder, markMessagesAsRead, getUnreadMessagesCount, addReview, approveReview, deleteReview, getProductReviews, getProductRating, updateSiteContent, updateLegalPage, shippingOptions, selectedShipping, setSelectedShipping, getAvailableShipping, getShippingPrice, getFinalTotal, updateShippingOption, addShippingOption, deleteShippingOption, newsletterSubscribers, newsletterPopupShown, setNewsletterPopupShown, subscribeToNewsletter, unsubscribeNewsletter, actualites, addActualite, updateActualite, deleteActualite, getActiveActualites, favorites, toggleFavorite, isFavorite, getFavoriteProducts, favoritesCount, currentUser, isLoggedIn, registerUser, loginUser, logoutUser, updateUserProfile, getUserOrders, users, emailLogs, getEmailLogs, clearEmailLogs };
+    const value = { page, setPage, selectedProduct, setSelectedProduct, selectedCategory, setSelectedCategory, selectedLegalPage, setSelectedLegalPage, cart, addToCart, removeFromCart, updateCartQuantity, clearCart, cartTotal, cartCount, products, categories, events, promos, orders, reviews, siteContent, legalPages, cookiesAccepted, setCookiesAccepted, isAdmin, setIsAdmin, cartOpen, setCartOpen, searchOpen, setSearchOpen, notification, showNotification, appliedPromo, applyPromoCode, getDiscountedTotal, placeOrder, addProduct, updateProduct, deleteProduct, addEvent, updateEvent, deleteEvent, addPromo, updatePromo, deletePromo, updateOrderStatus, orderStatuses, getOrderByTracking, addMessageToOrder, markMessagesAsRead, getUnreadMessagesCount, addReview, approveReview, deleteReview, getProductReviews, getProductRating, updateSiteContent, updateLegalPage, shippingOptions, selectedShipping, setSelectedShipping, getAvailableShipping, getShippingPrice, getFinalTotal, updateShippingOption, addShippingOption, deleteShippingOption, newsletterSubscribers, newsletterPopupShown, setNewsletterPopupShown, subscribeToNewsletter, unsubscribeNewsletter, actualites, addActualite, updateActualite, deleteActualite, getActiveActualites, favorites, toggleFavorite, isFavorite, getFavoriteProducts, favoritesCount, currentUser, isLoggedIn, registerUser, loginUser, logoutUser, updateUserProfile, getUserOrders, users, emailLogs, getEmailLogs, clearEmailLogs, apiLoading, apiError };
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 const useApp = () => useContext(AppContext);
@@ -2156,8 +2525,14 @@ const PromoForm = ({ promo, onSave, onCancel }) => {
 
 // APP
 const App = () => {
-    const { page } = useApp();
+    const { page, apiLoading, apiError } = useApp();
     const renderPage = () => { switch(page) { case 'shop': return <ShopPage />; case 'product': return <ProductPage />; case 'events': return <EventsPage />; case 'actualites': return <ActualitesPage />; case 'favorites': return <FavoritesPage />; case 'auth': return <AuthPage />; case 'account': return <AccountPage />; case 'about': return <AboutPage />; case 'checkout': return <CheckoutPage />; case 'login': return <LoginPage />; case 'admin': return <AdminDashboard />; case 'legal': return <LegalPage />; case 'tracking': return <TrackingPage />; default: return <HomePage />; } };
+    if (apiLoading) {
+        return (<div className="min-h-screen flex items-center justify-center bg-[#FDFCF8]"><div className="text-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div><p className="text-emerald-800 font-medium">Chargement...</p></div></div>);
+    }
+    if (apiError) {
+        return (<div className="min-h-screen flex items-center justify-center bg-[#FDFCF8]"><div className="text-center max-w-md px-4"><div className="text-red-500 text-5xl mb-4">!</div><h2 className="text-xl font-bold text-stone-800 mb-2">Erreur de connexion</h2><p className="text-stone-600 mb-4">{apiError}</p><button onClick={() => window.location.reload()} className="px-6 py-2 bg-emerald-700 text-white rounded-full hover:bg-emerald-800">Reessayer</button></div></div>);
+    }
     return (<div className="min-h-screen overflow-x-hidden">{page !== 'admin' && <Navigation />}{renderPage()}<CartSidebar /><SearchModal /><CookieBanner /><NewsletterPopup /><Notification /></div>);
 };
 const AppWrapper = () => (<AppProvider><App /></AppProvider>);
