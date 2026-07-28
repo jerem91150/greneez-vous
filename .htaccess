@@ -1,0 +1,69 @@
+# =====================================================
+# Greenez Vous - configuration Apache (racine du site)
+# A placer dans public_html/ a la racine, a cote de index.html
+# =====================================================
+
+# -----------------------------------------------------
+# Routage : les URL propres (/boutique, /produit/12) sont servies par
+# index.html, qui affiche ensuite la bonne page cote navigateur.
+# Sans cette regle, ouvrir /produit/12 directement renverrait une 404.
+# -----------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Ne jamais reecrire l'API : elle doit repondre en JSON
+    RewriteRule ^api/ - [L]
+
+    # Laisser passer les fichiers et dossiers qui existent reellement
+    # (index.html, dist/app.js, dist/styles.css, robots.txt, images...)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Tout le reste est confie a l'application
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# -----------------------------------------------------
+# Ne pas exposer le code source ni les fichiers de build
+# -----------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(src|node_modules|sql)/ - [F,L]
+    RewriteRule ^(package\.json|package-lock\.json|tailwind\.config\.js)$ - [F,L]
+    RewriteRule (^|/)\.git - [F,L]
+</IfModule>
+
+# Pas de listing de repertoire
+Options -Indexes
+
+# -----------------------------------------------------
+# Cache : les fichiers de build changent de contenu a chaque deploiement,
+# on reste prudent (1 jour) faute d'empreinte dans le nom de fichier.
+# index.html ne doit jamais etre mis en cache, sinon les visiteurs
+# continuent de charger l'ancienne version apres un deploiement.
+# -----------------------------------------------------
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 day"
+    ExpiresByType application/javascript "access plus 1 day"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(html)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+
+    # En-tetes de securite de base
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# -----------------------------------------------------
+# Compression
+# -----------------------------------------------------
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>

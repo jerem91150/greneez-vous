@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# Endpoints techniques et fichiers de travail
+Disallow: /api/
+Disallow: /sql/
+Disallow: /src/
+Disallow: /node_modules/
+
+# Pages sans interet pour un moteur de recherche
+Disallow: /commande
+Disallow: /confirmation
+Disallow: /mon-compte
+Disallow: /connexion
+Disallow: /favoris
+Disallow: /admin
+Disallow: /admin-login
+Disallow: /reset-password
+
+Sitemap: https://peachpuff-capybara-465964.hostingersite.com/sitemap.xml

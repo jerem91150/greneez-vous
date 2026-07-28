@@ -1,9 +1,20 @@
 {
   "name": "greenez-vous",
   "version": "1.0.0",
-  "description": "Boutique e-commerce Greenez Vous",
+  "description": "Boutique Greenez Vous - creations textiles artisanales zero dechet",
+  "private": true,
   "scripts": {
-    "start": "npx serve .",
-    "dev": "npx live-server --port=3000"
+    "build": "npm run build:js && npm run build:css",
+    "build:js": "esbuild src/app.jsx --outfile=dist/app.js --minify --target=es2018 --legal-comments=none",
+    "build:css": "tailwindcss -i src/styles.css -o dist/styles.css --minify",
+    "watch": "npm run watch:js & npm run watch:css",
+    "watch:js": "esbuild src/app.jsx --outfile=dist/app.js --target=es2018 --sourcemap --watch",
+    "watch:css": "tailwindcss -i src/styles.css -o dist/styles.css --watch",
+    "sitemap": "node scripts/generate-sitemap.js"
+  },
+  "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
+    "esbuild": "^0.25.0",
+    "tailwindcss": "^3.4.19"
   }
 }

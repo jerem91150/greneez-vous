@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles propres au site, auparavant en <style> inline dans index.html */
+@layer base {
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+}
+
+@layer components {
+    .font-editorial {
+        font-family: 'Playfair Display', serif;
+    }
+
+    .modal-backdrop {
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+    }
+}
+
+/* Animations */
+@keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-fadeIn  { animation: fadeIn 0.3s ease-out; }
+.animate-slideIn { animation: slideIn 0.3s ease-out; }
+.animate-spin    { animation: spin 1s linear infinite; }
+
+/* Respecte le reglage systeme "reduire les animations" */
+@media (prefers-reduced-motion: reduce) {
+    .animate-marquee,
+    .animate-fadeIn,
+    .animate-slideIn,
+    .animate-spin {
+        animation: none;
+    }
+}
