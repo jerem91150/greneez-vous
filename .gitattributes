@@ -1,0 +1,20 @@
+# Normalisation des fins de ligne.
+#
+# Les fichiers lus par le serveur doivent rester en LF : un .htaccess
+# recupere en CRLF peut faire echouer certaines directives Apache, et le
+# retour chariot se retrouve alors dans la valeur de la directive.
+# Le depot est manipule depuis Windows, d'ou la necessite d'etre explicite.
+
+* text=auto
+
+.htaccess       text eol=lf
+*.php           text eol=lf
+*.sql           text eol=lf
+*.js            text eol=lf
+*.jsx           text eol=lf
+*.css           text eol=lf
+*.html          text eol=lf
+*.json          text eol=lf
+*.xml           text eol=lf
+*.txt           text eol=lf
+*.md            text eol=lf
