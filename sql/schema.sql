@@ -15,10 +15,11 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `categories` (`id`, `name`, `slug`) VALUES
+INSERT IGNORE INTO `categories` (`id`, `name`, `slug`) VALUES
 (1, 'Salle de Bain', 'salle-de-bain'),
 (2, 'Cheveux', 'cheveux'),
-(3, 'Pour les Enfants', 'enfants');
+(3, 'Pour les Enfants', 'enfants'),
+(4, 'Pochons', 'pochons');
 
 -- -----------------------------------------------------
 -- Table products
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `tag` VARCHAR(50) DEFAULT NULL,
   `active` TINYINT(1) DEFAULT 1,
   `featured` TINYINT(1) DEFAULT 0,
+  `sort_order` INT DEFAULT 0,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL
@@ -51,9 +53,11 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Mot de passe: admin123 (hash bcrypt)
-INSERT INTO `admins` (`email`, `password`, `name`) VALUES
-('admin@greenez.fr', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Admin Greenez Vous');
+-- IMPORTANT: Mot de passe initial a changer immediatement apres la premiere connexion !
+-- Le mot de passe est defini lors de l'installation (hash bcrypt ci-dessous).
+-- Generer un nouveau hash: php -r "echo password_hash('VotreNouveauMotDePasse', PASSWORD_DEFAULT);"
+INSERT IGNORE INTO `admins` (`email`, `password`, `name`) VALUES
+('admin@greenez.fr', 'PLACEHOLDER_HASH_A_GENERER_A_L_INSTALLATION', 'Admin Greenez Vous');
 
 -- -----------------------------------------------------
 -- Table customers (clients)
@@ -95,7 +99,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
   `promo_code` VARCHAR(50),
   `promo_discount` DECIMAL(10,2) DEFAULT 0,
   `total` DECIMAL(10,2),
-  `status` ENUM('pending', 'confirmed', 'crafting', 'quality', 'packing', 'shipped', 'delivered') DEFAULT 'pending',
+  `status` ENUM('pending', 'confirmed', 'crafting', 'quality', 'packing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
   `payment_method` VARCHAR(50),
   `payment_status` ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
   `notes` TEXT,
@@ -187,7 +191,7 @@ CREATE TABLE IF NOT EXISTS `promos` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `promos` (`code`, `discount`, `type`, `min_order`, `max_usage`) VALUES
+INSERT IGNORE INTO `promos` (`code`, `discount`, `type`, `min_order`, `max_usage`) VALUES
 ('BIENVENUE10', 10, 'percent', 15, 100),
 ('HIVER2026', 5, 'fixed', 20, 50),
 ('ZERODECHET', 15, 'percent', 30, 30);
@@ -207,10 +211,12 @@ CREATE TABLE IF NOT EXISTS `shipping_options` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `shipping_options` (`name`, `description`, `price`, `free_above`) VALUES
-('Lettre suivie', 'Livraison en 3-5 jours ouvrés', 2.95, 25),
-('Colissimo', 'Livraison en 2-3 jours ouvrés', 4.95, 40),
-('Point Relais', 'Retrait en point relais sous 3-5 jours', 3.95, 30);
+-- Les id sont specifies pour que INSERT IGNORE soit idempotent
+-- (la table n'a pas de cle unique sur le nom, seulement la PK sur id)
+INSERT IGNORE INTO `shipping_options` (`id`, `name`, `description`, `price`, `free_above`) VALUES
+(1, 'Lettre suivie', 'Livraison en 3-5 jours ouvrés', 2.95, 25),
+(2, 'Colissimo', 'Livraison en 2-3 jours ouvrés', 4.95, 40),
+(3, 'Point Relais', 'Retrait en point relais sous 3-5 jours', 3.95, 30);
 
 -- -----------------------------------------------------
 -- Table newsletter_subscribers
@@ -247,18 +253,35 @@ CREATE TABLE IF NOT EXISTS `site_settings` (
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `site_settings` (`setting_key`, `setting_value`) VALUES
-('hero_badge', 'Artisanat Francais'),
-('hero_title', 'Creations Textiles'),
-('hero_title_italic', 'Zero Dechet'),
-('hero_subtitle', 'Des creations artisanales, confectionnees avec amour a Lyon, pour une salle de bain plus douce et une planete preservee.'),
-('about_title', 'L\'Art du Fait Main'),
-('about_text', 'Chaque piece est unique, confectionnee dans mon atelier lyonnais avec des matieres soigneusement selectionnees.'),
-('footer_text', 'Creations artisanales zero dechet, fabriquees avec amour a Lyon.'),
-('contact_email', 'contact@greenezvous.fr'),
-('contact_phone', '06 12 34 56 78'),
+INSERT IGNORE INTO `site_settings` (`setting_key`, `setting_value`) VALUES
+('heroBadge', 'Artisanat Textile Francais'),
+('heroTitle', 'Naturel'),
+('heroTitleItalic', 'et poetique.'),
+('heroSubtitle', 'Une couture artisanale française qui prend soin de vous et de la planete. Simple, durable et terriblement douce.'),
+('heroImage', 'https://images.sumup.com/img_2X6JNB07X491NB54RJ7D3PV6E6'),
+('heroQuote', 'Mes lingettes preferees depuis 2 ans !'),
+('aboutTitle', 'Notre Histoire'),
+('aboutText', 'Greenez Vous est ne d\'une envie simple : creer de beaux objets utiles, sans compromis sur l\'ethique. Dans mon petit atelier lyonnais, je coupe, je couds, je brode chaque piece a la main.'),
+('aboutImage', 'https://images.sumup.com/img_4HNA0HDEYF8H7A7V7MZVY83825'),
+('categoryImage1', 'https://images.sumup.com/img_6J8NFARCAP87Y9HTEP0QHP2VRG'),
+('categoryTitle1', 'Salle de Bain'),
+('categoryDesc1', 'Lingettes, serviettes & gants'),
+('categoryImage2', 'https://images.sumup.com/img_0VWXRPQJVG8TQVJ3GEJNX5T2AQ'),
+('categoryTitle2', 'Pochons'),
+('categoryImage3', 'https://images.sumup.com/img_0S7R651QCK9HZS37VJBWC57P9A'),
+('categoryTitle3', 'Cheveux'),
+('customTitle', 'Une creation sur mesure ?'),
+('customText', 'Vous avez un tissu de famille que vous souhaitez transformer ? Discutons-en ensemble.'),
+('marquee1', 'FAIT MAIN EN FRANCE'),
+('marquee2', 'MATIERES NATURELLES'),
+('marquee3', 'ZERO DECHET'),
+('featuredLabel', 'Selection du mois'),
+('featuredTitle', 'Les Pepites'),
+('footerText', 'Rejoignez le mouvement slow life. Une couture a la fois, pour un monde plus doux.'),
+('contactEmail', 'contact@greenez-vous.fr'),
+('contactPhone', '06 00 00 00 00'),
 ('instagram', 'https://instagram.com/Greenez_vous'),
-('facebook', '');
+('facebook', 'https://facebook.com/greenezvous');
 
 -- -----------------------------------------------------
 -- Table email_logs
@@ -271,6 +294,20 @@ CREATE TABLE IF NOT EXISTS `email_logs` (
   `preview` TEXT,
   `status` ENUM('sent', 'failed') DEFAULT 'sent',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- -----------------------------------------------------
+-- Table password_resets
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `customer_id` INT NOT NULL,
+  `token` VARCHAR(64) NOT NULL,
+  `expires_at` DATETIME NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`customer_id`) REFERENCES `customers`(`id`) ON DELETE CASCADE,
+  INDEX `idx_token` (`token`),
+  INDEX `idx_expires` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 SET FOREIGN_KEY_CHECKS = 1;

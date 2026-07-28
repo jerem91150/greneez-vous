@@ -14,6 +14,7 @@ switch ($method) {
         getReviews();
         break;
     case 'POST':
+        checkRateLimit('create_review', 5, 600);
         createReview();
         break;
     case 'PUT':
@@ -43,16 +44,25 @@ function getReviews() {
         }
         $stmt->execute([$productId]);
     } else {
-        // Tous les avis (admin seulement)
-        if (!$adminId) {
-            jsonResponse(['error' => 'Unauthorized'], 401);
+        // Tous les avis
+        if ($adminId) {
+            // Admin voit tous les avis
+            $stmt = $db->query("
+                SELECT r.*, p.name as product_name
+                FROM reviews r
+                LEFT JOIN products p ON r.product_id = p.id
+                ORDER BY r.approved ASC, r.created_at DESC
+            ");
+        } else {
+            // Public voit seulement les avis approuves
+            $stmt = $db->query("
+                SELECT r.*, p.name as product_name
+                FROM reviews r
+                LEFT JOIN products p ON r.product_id = p.id
+                WHERE r.approved = 1
+                ORDER BY r.created_at DESC
+            ");
         }
-        $stmt = $db->query("
-            SELECT r.*, p.name as product_name
-            FROM reviews r
-            LEFT JOIN products p ON r.product_id = p.id
-            ORDER BY r.approved ASC, r.created_at DESC
-        ");
     }
 
     jsonResponse($stmt->fetchAll());
@@ -67,16 +77,45 @@ function createReview() {
         jsonResponse(['error' => 'product_id et rating requis'], 400);
     }
 
+    // La note doit rester dans l'echelle 1-5 : sans borne, une note aberrante
+    // fausserait durablement la moyenne affichee sur la fiche produit
+    $rating = intval($data['rating']);
+    if ($rating < 1 || $rating > 5) {
+        jsonResponse(['error' => 'La note doit etre comprise entre 1 et 5'], 400);
+    }
+
+    // Le produit doit exister et etre actif
+    $productId = intval($data['product_id']);
+    $stmt = $db->prepare("SELECT id FROM products WHERE id = ? AND active = 1");
+    $stmt->execute([$productId]);
+    if (!$stmt->fetch()) {
+        jsonResponse(['error' => 'Produit introuvable'], 404);
+    }
+
+    // Bornes de longueur (la table accepte des textes longs, on evite les abus)
+    $customerName = trim($data['customer_name'] ?? '');
+    if ($customerName === '') {
+        $customerName = 'Anonyme';
+    }
+    if (mb_strlen($customerName) > 80) {
+        jsonResponse(['error' => 'Le nom ne doit pas depasser 80 caracteres'], 400);
+    }
+
+    $comment = trim($data['comment'] ?? '');
+    if (mb_strlen($comment) > 2000) {
+        jsonResponse(['error' => 'Le commentaire ne doit pas depasser 2000 caracteres'], 400);
+    }
+
     $stmt = $db->prepare("
         INSERT INTO reviews (product_id, customer_name, rating, comment, approved)
         VALUES (?, ?, ?, ?, 0)
     ");
 
     $stmt->execute([
-        intval($data['product_id']),
-        $data['customer_name'] ?? 'Anonyme',
-        intval($data['rating']),
-        $data['comment'] ?? null
+        $productId,
+        $customerName,
+        $rating,
+        $comment !== '' ? $comment : null
     ]);
 
     jsonResponse(['success' => true, 'message' => 'Avis soumis, en attente de validation'], 201);

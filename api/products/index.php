@@ -39,16 +39,20 @@ function getProducts() {
 
     $id = $_GET['id'] ?? null;
     $category = $_GET['category'] ?? null;
-    $active_only = $_GET['active'] ?? 'true';
+    $adminId = verifyAdminToken();
 
     if ($id) {
-        // Un seul produit
-        $stmt = $db->prepare("
+        // Un seul produit (les inactifs sont reserves aux admins)
+        $sql = "
             SELECT p.*, c.name as category_name, c.slug as category_slug
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             WHERE p.id = ?
-        ");
+        ";
+        if (!$adminId) {
+            $sql .= " AND p.active = 1";
+        }
+        $stmt = $db->prepare($sql);
         $stmt->execute([$id]);
         $product = $stmt->fetch();
 
@@ -58,7 +62,7 @@ function getProducts() {
         jsonResponse($product);
     }
 
-    // Liste des produits
+    // Liste des produits (les inactifs sont reserves aux admins)
     $sql = "
         SELECT p.*, c.name as category_name, c.slug as category_slug
         FROM products p
@@ -67,7 +71,7 @@ function getProducts() {
     ";
     $params = [];
 
-    if ($active_only === 'true') {
+    if (!$adminId) {
         $sql .= " AND p.active = 1";
     }
 
@@ -76,7 +80,7 @@ function getProducts() {
         $params[] = $category;
     }
 
-    $sql .= " ORDER BY p.featured DESC, p.created_at DESC";
+    $sql .= " ORDER BY p.featured DESC, p.sort_order ASC, p.created_at DESC";
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -98,8 +102,8 @@ function createProduct() {
     }
 
     $stmt = $db->prepare("
-        INSERT INTO products (name, subtitle, description, price, stock, category_id, image, tag, active, featured)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (name, subtitle, description, price, stock, category_id, image, tag, active, featured, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -112,7 +116,8 @@ function createProduct() {
         $data['image'] ?? null,
         $data['tag'] ?? null,
         isset($data['active']) ? ($data['active'] ? 1 : 0) : 1,
-        isset($data['featured']) ? ($data['featured'] ? 1 : 0) : 0
+        isset($data['featured']) ? ($data['featured'] ? 1 : 0) : 0,
+        intval($data['sort_order'] ?? 0)
     ]);
 
     $id = $db->lastInsertId();
@@ -132,7 +137,7 @@ function updateProduct() {
     $fields = [];
     $params = [];
 
-    $allowedFields = ['name', 'subtitle', 'description', 'price', 'stock', 'category_id', 'image', 'tag', 'active', 'featured'];
+    $allowedFields = ['name', 'subtitle', 'description', 'price', 'stock', 'category_id', 'image', 'tag', 'active', 'featured', 'sort_order'];
 
     foreach ($allowedFields as $field) {
         if (isset($data[$field])) {
@@ -141,7 +146,7 @@ function updateProduct() {
                 $params[] = $data[$field] ? 1 : 0;
             } elseif (in_array($field, ['price'])) {
                 $params[] = floatval($data[$field]);
-            } elseif (in_array($field, ['stock', 'category_id'])) {
+            } elseif (in_array($field, ['stock', 'category_id', 'sort_order'])) {
                 $params[] = intval($data[$field]);
             } else {
                 $params[] = $data[$field];

@@ -37,10 +37,46 @@ function getSettings() {
     jsonResponse($settings);
 }
 
+/**
+ * Cles autorisees dans site_settings.
+ * Sans cette liste, l'endpoint accepterait n'importe quelle cle et la table
+ * deviendrait un stockage libre : toute cle injectee finirait rendue cote
+ * client (les pages legales sont affichees en HTML brut).
+ */
+function allowedSettingKeys() {
+    return [
+        // Accueil - hero
+        'heroTitle', 'heroTitleItalic', 'heroSubtitle', 'heroBadge', 'heroImage', 'heroQuote',
+        // A propos
+        'aboutTitle', 'aboutText', 'aboutImage',
+        // Categories
+        'categoryImage1', 'categoryTitle1', 'categoryDesc1',
+        'categoryImage2', 'categoryTitle2',
+        'categoryImage3', 'categoryTitle3',
+        // Bloc libre
+        'customTitle', 'customText',
+        // Bandeau defilant
+        'marquee1', 'marquee2', 'marquee3',
+        // Selection produits
+        'featuredLabel', 'featuredTitle',
+        // Pied de page et contact
+        'footerText', 'contactEmail', 'contactPhone', 'instagram', 'facebook',
+        // Pages legales (JSON : {title, content})
+        'legal_cgv', 'legal_mentions', 'legal_confidentialite'
+    ];
+}
+
 function updateSettings() {
     global $db;
 
     $data = getJsonInput();
+
+    if (!is_array($data) || empty($data)) {
+        jsonResponse(['error' => 'Aucun parametre a mettre a jour'], 400);
+    }
+
+    $allowed = allowedSettingKeys();
+    $rejected = [];
 
     $stmt = $db->prepare("
         INSERT INTO site_settings (setting_key, setting_value)
@@ -49,8 +85,21 @@ function updateSettings() {
     ");
 
     foreach ($data as $key => $value) {
-        $stmt->execute([$key, $value]);
+        if (!in_array($key, $allowed, true)) {
+            $rejected[] = $key;
+            continue;
+        }
+        // Valeurs scalaires uniquement ; les structures sont envoyees en JSON
+        if (is_array($value) || is_object($value)) {
+            $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        $stmt->execute([$key, (string)$value]);
     }
 
-    jsonResponse(['success' => true, 'message' => 'Parametres mis a jour']);
+    $response = ['success' => true, 'message' => 'Parametres mis a jour'];
+    if (!empty($rejected)) {
+        $response['ignored'] = $rejected;
+    }
+
+    jsonResponse($response);
 }

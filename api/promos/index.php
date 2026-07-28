@@ -36,20 +36,25 @@ switch ($method) {
 function getPromos() {
     global $db;
 
-    // Admin voit tout
-    $adminId = verifyAdminToken();
-
-    if ($adminId) {
-        $stmt = $db->query("SELECT * FROM promos ORDER BY created_at DESC");
-    } else {
-        $stmt = $db->query("SELECT id, code, discount, type, min_order FROM promos WHERE active = 1");
+    // La liste des codes promo est reservee a l'admin : la publier permettrait
+    // a n'importe quel visiteur de recuperer tous les codes de reduction.
+    // Le public passe par POST ?validate=1 pour tester un code qu'il connait deja.
+    // On renvoie une liste vide (et non une 401) pour ne pas casser le
+    // chargement initial du site, qui recupere plusieurs ressources en parallele.
+    if (!verifyAdminToken()) {
+        jsonResponse([]);
     }
 
+    $stmt = $db->query("SELECT * FROM promos ORDER BY created_at DESC");
     jsonResponse($stmt->fetchAll());
 }
 
 function validatePromo() {
     global $db;
+
+    // Les codes n'etant plus publics, on limite les essais pour eviter
+    // qu'ils soient devines par force brute
+    checkRateLimit('validate_promo', 15, 600);
 
     $data = getJsonInput();
     $code = strtoupper(trim($data['code'] ?? ''));

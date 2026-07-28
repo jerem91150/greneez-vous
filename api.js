@@ -9,32 +9,93 @@ const API_BASE = '/api';
 let adminToken = localStorage.getItem('greenez_admin_token');
 let customerToken = localStorage.getItem('greenez_customer_token');
 
+// Heuristique de choix du token :
+// - les routes clairement "clientes" (login/register client, profil, commandes
+//   client, suivi invite, inscription newsletter) utilisent le token client si
+//   present, meme quand une session admin est ouverte en parallele ;
+// - toutes les autres routes (ecritures admin, listes admin) utilisent le
+//   token admin en priorite.
+// options.tokenType ('customer' | 'admin') permet de forcer le choix.
+function isCustomerRoute(endpoint, options) {
+    const method = (options.method || 'GET').toUpperCase();
+    if (endpoint.indexOf('/auth/reset-password.php') === 0) return true;
+    if (endpoint.indexOf('/users/index.php?action=login') === 0) return true;
+    if (endpoint.indexOf('/users/index.php?action=register') === 0) return true;
+    if (endpoint.indexOf('/users/index.php?action=profile') === 0) return true;
+    if (endpoint.indexOf('/users/index.php?action=orders') === 0) return true;
+    // Inscription newsletter (POST) = action publique ; GET liste = admin
+    if (endpoint.indexOf('/newsletter/index.php') === 0) return method === 'POST';
+    if (endpoint.indexOf('/orders/index.php') === 0) {
+        // Suivi invite et creation de commande (le POST admin n'existe pas)
+        if (endpoint.indexOf('tracking=') !== -1) return true;
+        if (method === 'POST') return true;
+    }
+    return false;
+}
+
 // Helper pour les requetes
 async function apiRequest(endpoint, options = {}) {
     const url = API_BASE + endpoint;
+
+    // tokenType est interne au client, ne pas le transmettre a fetch
+    const { tokenType, ...fetchOptions } = options;
 
     const headers = {
         'Content-Type': 'application/json',
         ...options.headers
     };
 
-    // Ajouter le token si disponible
-    if (adminToken) {
-        headers['Authorization'] = 'Bearer ' + adminToken;
-    } else if (customerToken) {
-        headers['Authorization'] = 'Bearer ' + customerToken;
+    // Lire les tokens depuis localStorage a chaque requete
+    // (le LoginPage stocke directement dans localStorage sans passer par API.auth)
+    const currentAdminToken = adminToken || localStorage.getItem('greenez_admin_token');
+    const currentCustomerToken = customerToken || localStorage.getItem('greenez_customer_token');
+
+    let tokenToUse = null;
+    if (tokenType === 'customer') {
+        tokenToUse = currentCustomerToken;
+    } else if (tokenType === 'admin') {
+        // Pas de repli sur le token client : le serveur verifie le type du
+        // token, un repli ne peut donc jamais aboutir et produit une 401
+        // impossible a diagnostiquer cote interface
+        tokenToUse = currentAdminToken;
+    } else if (isCustomerRoute(endpoint, options)) {
+        tokenToUse = currentCustomerToken || currentAdminToken;
+    } else {
+        tokenToUse = currentAdminToken || currentCustomerToken;
+    }
+    if (tokenToUse) {
+        headers['Authorization'] = 'Bearer ' + tokenToUse;
     }
 
     try {
         const response = await fetch(url, {
-            ...options,
+            ...fetchOptions,
             headers
         });
 
-        const data = await response.json();
+        // Session admin expiree : nettoyer le stockage pour que l'interface
+        // admin ne reste pas visible avec une session invalide
+        if (response.status === 401 && tokenToUse && tokenToUse === currentAdminToken) {
+            adminToken = null;
+            localStorage.removeItem('greenez_admin_token');
+            localStorage.removeItem('greenez_admin');
+            // greenez_admin_user contient l'identite admin affichee dans le
+            // tableau de bord : la laisser en place apres expiration de la
+            // session ferait persister un admin connecte en apparence
+            localStorage.removeItem('greenez_admin_user');
+        }
+
+        // Le backend peut renvoyer du HTML en cas d'erreur fatale PHP :
+        // produire une erreur lisible avec le statut HTTP dans ce cas
+        let data;
+        try {
+            data = await response.json();
+        } catch (jsonError) {
+            throw new Error('Reponse serveur invalide (HTTP ' + response.status + ')');
+        }
 
         if (!response.ok) {
-            throw new Error(data.error || 'Erreur API');
+            throw new Error(data.error || 'Erreur API (HTTP ' + response.status + ')');
         }
 
         return data;
@@ -94,6 +155,20 @@ const API = {
         logoutCustomer() {
             customerToken = null;
             localStorage.removeItem('greenez_customer_token');
+        },
+
+        async requestPasswordReset(email) {
+            return apiRequest('/auth/reset-password.php?action=request', {
+                method: 'POST',
+                body: JSON.stringify({ email })
+            });
+        },
+
+        async resetPassword(token, password) {
+            return apiRequest('/auth/reset-password.php?action=reset', {
+                method: 'POST',
+                body: JSON.stringify({ token, password })
+            });
         }
     },
 
@@ -166,6 +241,36 @@ const API = {
             return apiRequest('/orders/index.php', {
                 method: 'PUT',
                 body: JSON.stringify({ id, status, note })
+            });
+        },
+
+        // Encaissement enregistre a la main tant qu'aucun prestataire de
+        // paiement n'est branche (admin uniquement)
+        async updatePaymentStatus(id, paymentStatus) {
+            return apiRequest('/orders/index.php', {
+                method: 'PUT',
+                body: JSON.stringify({ id, payment_status: paymentStatus })
+            });
+        },
+
+        // trackingCode : optionnel, permet d'identifier une commande invitee cote client
+        async addMessage(orderId, content, trackingCode = null) {
+            const body = { order_id: orderId, content };
+            if (trackingCode) body.tracking_code = trackingCode;
+            return apiRequest('/orders/index.php?action=message', {
+                method: 'POST',
+                body: JSON.stringify(body),
+                tokenType: trackingCode ? 'customer' : 'admin'
+            });
+        },
+
+        async markMessagesRead(orderId, trackingCode = null) {
+            const body = { order_id: orderId };
+            if (trackingCode) body.tracking_code = trackingCode;
+            return apiRequest('/orders/index.php?action=read-messages', {
+                method: 'PUT',
+                body: JSON.stringify(body),
+                tokenType: trackingCode ? 'customer' : 'admin'
             });
         }
     },
@@ -381,6 +486,15 @@ const API = {
 
         async getOrders() {
             return apiRequest('/users/index.php?action=orders');
+        }
+    },
+
+    // =====================================================
+    // INSTAGRAM
+    // =====================================================
+    instagram: {
+        async fetchPost(url) {
+            return apiRequest('/instagram/index.php?url=' + encodeURIComponent(url));
         }
     }
 };

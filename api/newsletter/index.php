@@ -4,6 +4,7 @@
  */
 
 require_once '../config/database.php';
+require_once '../config/email.php';
 setCorsHeaders();
 
 $db = getDB();
@@ -15,6 +16,7 @@ switch ($method) {
         getSubscribers();
         break;
     case 'POST':
+        checkRateLimit('newsletter_subscribe', 3, 600);
         subscribe();
         break;
     case 'DELETE':
@@ -46,23 +48,17 @@ function subscribe() {
     // Verifier si deja inscrit
     $stmt = $db->prepare("SELECT id FROM newsletter_subscribers WHERE LOWER(email) = LOWER(?)");
     $stmt->execute([$email]);
+    $existing = $stmt->fetch();
 
-    if ($stmt->fetch()) {
-        jsonResponse(['error' => 'Cet email est deja inscrit'], 400);
+    // Reponse identique que l'email soit deja inscrit ou non : repondre
+    // differemment permettrait de tester si une adresse est dans la base.
+    // On se contente de ne pas reinserer ni renvoyer l'email de bienvenue.
+    if (!$existing) {
+        $stmt = $db->prepare("INSERT INTO newsletter_subscribers (email, first_name) VALUES (?, ?)");
+        $stmt->execute([$email, $firstName ?: null]);
+
+        sendNewsletterWelcome($email, $firstName);
     }
-
-    // Inscrire
-    $stmt = $db->prepare("INSERT INTO newsletter_subscribers (email, first_name) VALUES (?, ?)");
-    $stmt->execute([$email, $firstName ?: null]);
-
-    // Log email
-    $db->prepare("INSERT INTO email_logs (type, recipient, subject, preview) VALUES (?, ?, ?, ?)")
-       ->execute([
-           'newsletter_welcome',
-           $email,
-           'Bienvenue dans la newsletter Greenez Vous !',
-           'Merci de votre inscription. Profitez de -10% avec le code BIENVENUE10'
-       ]);
 
     jsonResponse(['success' => true, 'message' => 'Inscription reussie'], 201);
 }

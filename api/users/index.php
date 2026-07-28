@@ -4,6 +4,7 @@
  */
 
 require_once '../config/database.php';
+require_once '../config/email.php';
 setCorsHeaders();
 
 $db = getDB();
@@ -46,6 +47,9 @@ function getCustomers() {
 
 function register() {
     global $db;
+
+    // Rate limit: 3 inscriptions par 10 minutes par IP
+    checkRateLimit('register', 3, 600);
 
     $data = getJsonInput();
 
@@ -92,17 +96,11 @@ function register() {
 
     $customerId = $db->lastInsertId();
 
-    // Token client
-    $token = base64_encode('customer:' . $customerId . ':' . time());
+    // Token client HMAC signe (valide 7 jours)
+    $token = generateToken('customer', $customerId, 604800);
 
-    // Log email
-    $db->prepare("INSERT INTO email_logs (type, recipient, subject, preview) VALUES (?, ?, ?, ?)")
-       ->execute([
-           'account_created',
-           $email,
-           'Bienvenue chez Greenez Vous !',
-           'Votre compte a ete cree avec succes.'
-       ]);
+    // Envoyer l'email de bienvenue
+    sendWelcomeEmail($email, $firstName);
 
     jsonResponse([
         'success' => true,
@@ -118,6 +116,9 @@ function register() {
 
 function login() {
     global $db;
+
+    // Rate limit: 5 tentatives par 5 minutes par IP
+    checkRateLimit('login_customer', 5, 300);
 
     $data = getJsonInput();
 
@@ -136,7 +137,8 @@ function login() {
         jsonResponse(['error' => 'Email ou mot de passe incorrect'], 401);
     }
 
-    $token = base64_encode('customer:' . $customer['id'] . ':' . time());
+    // Token client HMAC signe (valide 7 jours)
+    $token = generateToken('customer', $customer['id'], 604800);
 
     jsonResponse([
         'success' => true,
@@ -223,35 +225,29 @@ function getCustomerOrders() {
     $stmt->execute([$customerId]);
     $orders = $stmt->fetchAll();
 
-    foreach ($orders as &$order) {
-        $stmtItems = $db->prepare("SELECT * FROM order_items WHERE order_id = ?");
-        $stmtItems->execute([$order['id']]);
-        $order['items'] = $stmtItems->fetchAll();
+    // Recuperer tous les items en une seule requete (evite un N+1)
+    if (!empty($orders)) {
+        $orderIds = array_column($orders, 'id');
+        $placeholders = implode(',', array_fill(0, count($orderIds), '?'));
+        $stmt = $db->prepare("SELECT * FROM order_items WHERE order_id IN ($placeholders)");
+        $stmt->execute($orderIds);
+
+        $itemsByOrder = [];
+        foreach ($stmt->fetchAll() as $item) {
+            $itemsByOrder[$item['order_id']][] = $item;
+        }
+
+        foreach ($orders as &$order) {
+            $order['items'] = $itemsByOrder[$order['id']] ?? [];
+        }
+        unset($order);
     }
 
     jsonResponse($orders);
 }
 
 function verifyCustomerToken() {
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
-
-    if (empty($token)) {
-        return false;
-    }
-
-    $decoded = base64_decode($token);
-    $parts = explode(':', $decoded);
-
-    if (count($parts) !== 3 || $parts[0] !== 'customer') {
-        return false;
-    }
-
-    // Token valide 7 jours
-    if (time() - intval($parts[2]) > 604800) {
-        return false;
-    }
-
-    return intval($parts[1]);
+    $token = getTokenFromHeader();
+    $payload = verifyToken($token, 'customer');
+    return $payload ? intval($payload['uid']) : false;
 }
