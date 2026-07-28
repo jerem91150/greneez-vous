@@ -33,9 +33,9 @@ function getEvents() {
     global $db;
 
     $adminId = verifyAdminToken();
-    $active_only = $_GET['active'] ?? 'true';
 
-    if ($adminId || $active_only !== 'true') {
+    // Les contenus inactifs ne sont visibles qu'avec un token admin valide
+    if ($adminId) {
         $stmt = $db->query("SELECT * FROM events ORDER BY date DESC");
     } else {
         $stmt = $db->query("SELECT * FROM events WHERE active = 1 ORDER BY date DESC");

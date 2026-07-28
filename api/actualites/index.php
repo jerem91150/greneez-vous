@@ -33,9 +33,9 @@ function getActualites() {
     global $db;
 
     $adminId = verifyAdminToken();
-    $active_only = $_GET['active'] ?? 'true';
 
-    if ($adminId || $active_only !== 'true') {
+    // Les contenus inactifs ne sont visibles qu'avec un token admin valide
+    if ($adminId) {
         $stmt = $db->query("SELECT * FROM actualites ORDER BY date DESC, created_at DESC");
     } else {
         $stmt = $db->query("SELECT * FROM actualites WHERE active = 1 ORDER BY date DESC, created_at DESC");

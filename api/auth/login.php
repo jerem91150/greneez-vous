@@ -11,6 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     jsonResponse(['error' => 'Method not allowed'], 405);
 }
 
+// Rate limit: 5 tentatives par 5 minutes par IP
+checkRateLimit('login_admin', 5, 300);
+
 $data = getJsonInput();
 
 $email = trim($data['email'] ?? '');
@@ -31,8 +34,8 @@ if (!$admin || !password_verify($password, $admin['password'])) {
     jsonResponse(['error' => 'Email ou mot de passe incorrect'], 401);
 }
 
-// Generer un token simple
-$token = base64_encode($admin['id'] . ':' . time());
+// Generer un token HMAC signe (valide 24h)
+$token = generateToken('admin', $admin['id'], 86400);
 
 jsonResponse([
     'success' => true,

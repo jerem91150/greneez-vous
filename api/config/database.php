@@ -1,13 +1,16 @@
 <?php
 /**
- * Configuration de la base de donnees
- * MODIFIER CES VALEURS AVEC VOS IDENTIFIANTS HOSTINGER
+ * Configuration de la base de donnees et fonctions utilitaires
+ * Les credentials sont dans env.php (non commite dans Git)
  */
 
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'u123456789_greenez'); // Remplacer par votre nom de BDD
-define('DB_USER', 'u123456789_admin');   // Remplacer par votre utilisateur
-define('DB_PASS', 'VotreMotDePasse');    // Remplacer par votre mot de passe
+// Charger la configuration sensible
+$envFile = __DIR__ . '/env.php';
+if (!file_exists($envFile)) {
+    http_response_code(500);
+    die(json_encode(['error' => 'Configuration file missing. Copy env.example.php to env.php']));
+}
+require_once $envFile;
 
 // Connexion PDO
 function getDB() {
@@ -32,11 +35,28 @@ function getDB() {
     return $db;
 }
 
-// Headers CORS pour permettre les requetes depuis le frontend
+// Headers CORS - restreint au domaine autorise
 function setCorsHeaders() {
-    header('Access-Control-Allow-Origin: *');
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+    // En production, seul le domaine autorise est accepte
+    // En dev local, accepter localhost
+    $allowedOrigins = [ALLOWED_ORIGIN];
+    if (strpos(ALLOWED_ORIGIN, 'localhost') !== false) {
+        $allowedOrigins[] = 'http://localhost:3000';
+        $allowedOrigins[] = 'http://localhost:8000';
+        $allowedOrigins[] = 'http://127.0.0.1:3000';
+    }
+
+    if (in_array($origin, $allowedOrigins)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+    } else {
+        header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
+    }
+
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Allow-Credentials: true');
     header('Content-Type: application/json; charset=utf-8');
 
     if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -68,33 +88,82 @@ function generateTrackingCode() {
     return $code;
 }
 
-// Verification du token admin (simple pour demo)
-function verifyAdminToken() {
-    $headers = getallheaders();
-    $token = $headers['Authorization'] ?? '';
-    $token = str_replace('Bearer ', '', $token);
+// =====================================================
+// TOKENS HMAC-SHA256 (remplace les anciens tokens base64)
+// =====================================================
 
+/**
+ * Generer un token signe HMAC-SHA256
+ * Format: base64(payload).signature
+ */
+function generateToken($type, $userId, $ttl = 86400) {
+    $payload = json_encode([
+        'type' => $type,
+        'uid' => $userId,
+        'iat' => time(),
+        'exp' => time() + $ttl
+    ]);
+    $payloadB64 = rtrim(base64_encode($payload), '=');
+    $signature = hash_hmac('sha256', $payloadB64, TOKEN_SECRET);
+    return $payloadB64 . '.' . $signature;
+}
+
+/**
+ * Verifier et decoder un token signe
+ * Retourne le payload decode ou false si invalide
+ */
+function verifyToken($token, $expectedType) {
     if (empty($token)) {
         return false;
     }
 
-    // Decoder le token (format simple: base64 de admin_id:timestamp)
-    $decoded = base64_decode($token);
-    $parts = explode(':', $decoded);
-
+    $parts = explode('.', $token);
     if (count($parts) !== 2) {
         return false;
     }
 
-    $adminId = $parts[0];
-    $timestamp = $parts[1];
+    $payloadB64 = $parts[0];
+    $signature = $parts[1];
 
-    // Token valide pendant 24h
-    if (time() - intval($timestamp) > 86400) {
+    // Verifier la signature HMAC
+    $expectedSignature = hash_hmac('sha256', $payloadB64, TOKEN_SECRET);
+    if (!hash_equals($expectedSignature, $signature)) {
         return false;
     }
 
-    return intval($adminId);
+    // Decoder le payload
+    $payload = json_decode(base64_decode($payloadB64), true);
+    if (!$payload) {
+        return false;
+    }
+
+    // Verifier le type
+    if (($payload['type'] ?? '') !== $expectedType) {
+        return false;
+    }
+
+    // Verifier l'expiration
+    if (time() > ($payload['exp'] ?? 0)) {
+        return false;
+    }
+
+    return $payload;
+}
+
+/**
+ * Extraire le token du header Authorization
+ */
+function getTokenFromHeader() {
+    $headers = getallheaders();
+    $auth = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+    return str_replace('Bearer ', '', $auth);
+}
+
+// Verification du token admin
+function verifyAdminToken() {
+    $token = getTokenFromHeader();
+    $payload = verifyToken($token, 'admin');
+    return $payload ? intval($payload['uid']) : false;
 }
 
 // Verification admin obligatoire
@@ -104,4 +173,53 @@ function requireAdmin() {
         jsonResponse(['error' => 'Unauthorized'], 401);
     }
     return $adminId;
+}
+
+// =====================================================
+// RATE LIMITING (fichier temporaire, par IP)
+// =====================================================
+
+/**
+ * Verifie le rate limit pour une action donnee
+ * $action: identifiant unique (ex: 'login_admin', 'login_customer')
+ * $maxAttempts: nombre max de tentatives
+ * $windowSeconds: fenetre de temps en secondes
+ * Bloque avec HTTP 429 si la limite est depassee
+ */
+function checkRateLimit($action, $maxAttempts = 5, $windowSeconds = 300) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $key = md5($action . '_' . $ip);
+    $dir = sys_get_temp_dir() . '/greenez_ratelimit';
+
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0700, true);
+    }
+
+    $file = $dir . '/' . $key;
+
+    // Lire les tentatives existantes
+    $attempts = [];
+    if (file_exists($file)) {
+        $content = @file_get_contents($file);
+        if ($content) {
+            $attempts = json_decode($content, true) ?: [];
+        }
+    }
+
+    // Filtrer les tentatives dans la fenetre de temps
+    $now = time();
+    $attempts = array_filter($attempts, function($t) use ($now, $windowSeconds) {
+        return ($now - $t) < $windowSeconds;
+    });
+
+    // Verifier la limite
+    if (count($attempts) >= $maxAttempts) {
+        $retryAfter = $windowSeconds - ($now - min($attempts));
+        header('Retry-After: ' . $retryAfter);
+        jsonResponse(['error' => 'Trop de tentatives. Reessayez dans ' . ceil($retryAfter / 60) . ' minute(s).'], 429);
+    }
+
+    // Enregistrer cette tentative
+    $attempts[] = $now;
+    @file_put_contents($file, json_encode(array_values($attempts)), LOCK_EX);
 }

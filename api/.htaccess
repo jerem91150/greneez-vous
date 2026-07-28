@@ -1,17 +1,29 @@
-# Enable CORS
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
-
-# Handle OPTIONS requests
-RewriteEngine On
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
+# CORS est gere par PHP (setCorsHeaders dans database.php)
+# Ne pas definir de headers CORS ici pour eviter les conflits
+# Les requetes OPTIONS sont gerees par PHP (setCorsHeaders)
 
 # PHP settings
 <IfModule mod_php.c>
     php_value display_errors 0
     php_value log_errors 1
+</IfModule>
+
+# Proteger les fichiers sensibles
+<FilesMatch "^env\.php$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^env\.example\.php$">
+    Require all denied
+</FilesMatch>
+
+# Bloquer l'acces aux fichiers SQL
+<FilesMatch "\.sql$">
+    Require all denied
+</FilesMatch>
+
+# Bloquer l'acces aux repertoires Git
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule (^|/)\.git - [F,L]
 </IfModule>
