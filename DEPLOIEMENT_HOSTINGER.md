@@ -166,27 +166,38 @@ Une fois la base de donnees configuree, importez les produits via phpMyAdmin :
    - `sql/schema.sql` (tables + donnees initiales)
    - `sql/import-products.sql` (catalogue produits)
 
-## 6. Tester
+## 6. Creer le compte administrateur
+
+Le hash du mot de passe n'est **pas** fourni dans `sql/schema.sql` : le depot
+etant public, y placer un hash reel permettrait une attaque par force brute.
+Vous generez donc votre propre mot de passe a l'installation.
+
+1. Sur votre machine, generez le hash (le mot de passe reste chez vous, seul
+   le hash part en base) :
+   ```bash
+   npm run admin-hash -- "VotreMotDePasse" votre-email@domaine.fr "Votre Nom"
+   ```
+   Le script affiche une requete SQL prete a coller.
+2. Dans **phpMyAdmin** > votre base > onglet **SQL**, collez et executez cette
+   requete. Elle cree l'admin (ou met a jour son mot de passe s'il existe deja).
+3. Conservez le mot de passe dans un gestionnaire de mots de passe.
+
+> Si Node.js n'est pas disponible et que vous avez PHP en local :
+> `php -r "echo password_hash('VotreMotDePasse', PASSWORD_DEFAULT);"`
+> puis inserez le hash a la main. **Ne jamais** utiliser un generateur de hash
+> en ligne : ce serait confier votre mot de passe a un tiers.
+
+## 7. Tester
 
 1. Accedez a votre site : `https://votre-domaine.com`
-2. Testez la connexion admin :
-   - Email: `admin@greenez.fr`
-   - Mot de passe: celui defini lors de l'installation (voir `sql/schema.sql`)
-3. **Changez immediatement le mot de passe** apres cette premiere connexion (voir section 7)
+2. Connectez-vous a l'administration avec l'email et le mot de passe definis
+   a l'etape 6.
 
-## 7. Changer le mot de passe admin (IMPORTANT!)
+## Changer le mot de passe admin plus tard
 
-Le mot de passe admin initial est defini lors de l'installation (hash dans `sql/schema.sql`). Changez-le immediatement apres la premiere connexion, via la page de reinitialisation du site ou directement en base.
-
-Dans phpMyAdmin, executez :
-```sql
-UPDATE admins SET password = '$2y$10$NOUVEAU_HASH' WHERE email = 'admin@greenez.fr';
-```
-
-Pour generer un nouveau hash, utilisez PHP en local (jamais un site tiers) :
-```bash
-php -r "echo password_hash('VOTRE_MOT_DE_PASSE', PASSWORD_DEFAULT);"
-```
+Meme procedure : `npm run admin-hash -- "NouveauMotDePasse" votre-email@domaine.fr`,
+puis executez le SQL affiche dans phpMyAdmin. La requete met a jour le mot de
+passe de l'admin existant.
 
 ---
 
@@ -215,8 +226,8 @@ commentaire dans `api/orders/index.php`, fonction `createOrder()`.
 ## Identifiants par defaut
 
 **Admin**
-- Email: admin@greenez.fr
-- Mot de passe: defini lors de l'installation (hash dans `sql/schema.sql`) — a changer immediatement apres la premiere connexion
+- Aucun identifiant par defaut. Le compte est cree a l'etape 6 avec le mot de
+  passe de votre choix.
 
 **Codes promo**
 - BIENVENUE10 : -10% (min 15 EUR)
