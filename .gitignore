@@ -27,6 +27,9 @@ npm-debug.log*
 # Credentials base de donnees
 api/config/env.php
 
+# Identifiants FTP du script de deploiement (npm run deploy)
+.env.deploy
+
 # Fichiers de debug/reset (ne doivent JAMAIS etre deployes)
 api/debug-admin.php
 api/reset-admin.php

@@ -11,10 +11,12 @@
     "watch:js": "esbuild src/app.jsx --outfile=dist/app.js --target=es2018 --sourcemap --watch",
     "watch:css": "tailwindcss -i src/styles.css -o dist/styles.css --watch",
     "sitemap": "node scripts/generate-sitemap.js",
-    "admin-hash": "node scripts/generate-admin-hash.js"
+    "admin-hash": "node scripts/generate-admin-hash.js",
+    "deploy": "npm run build && node scripts/deploy.js"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.20",
+    "basic-ftp": "^6.0.2",
     "bcryptjs": "^2.4.3",
     "esbuild": "^0.25.0",
     "tailwindcss": "^3.4.19"

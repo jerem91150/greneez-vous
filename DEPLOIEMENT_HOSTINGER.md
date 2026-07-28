@@ -77,6 +77,38 @@ define('FROM_EMAIL', 'contact@greenez-vous.fr');
 
 ## 4. Uploader les fichiers
 
+### Option A — Deploiement automatise (recommande)
+
+Deux moyens, qui envoient exactement les memes fichiers :
+
+**En une commande depuis votre machine :**
+1. Creez un fichier `.env.deploy` a la racine (deja ignore par Git, il ne
+   quittera jamais votre poste). Les identifiants FTP se trouvent dans
+   hPanel > **Fichiers** > **Comptes FTP** :
+   ```
+   FTP_SERVER=ftp.votredomaine.fr
+   FTP_USERNAME=votre_identifiant
+   FTP_PASSWORD=votre_mot_de_passe
+   ```
+2. Verifiez ce qui serait envoye, sans rien transferer :
+   ```bash
+   npm run deploy -- --dry-run
+   ```
+3. Deployez (compile puis envoie) :
+   ```bash
+   npm run deploy
+   ```
+
+**Ou automatiquement a chaque push** via `.github/workflows/deploy-hostinger.yml`.
+Ajoutez les trois secrets `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD` dans
+GitHub > **Settings** > **Secrets and variables** > **Actions**.
+Necessite un compte GitHub sans blocage de facturation.
+
+Dans les deux cas, `api/config/env.php` n'est **jamais** transmis ni supprime :
+il contient vos identifiants de base et vit uniquement sur le serveur.
+
+### Option B — Upload manuel
+
 1. Allez dans **Fichiers** > **Gestionnaire de fichiers**
 2. Ouvrez le dossier `public_html`
 3. Supprimez les fichiers par defaut (sauf `.htaccess` si present)
