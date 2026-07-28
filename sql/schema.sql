@@ -53,11 +53,18 @@ CREATE TABLE IF NOT EXISTS `admins` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- IMPORTANT: Mot de passe initial a changer immediatement apres la premiere connexion !
--- Le mot de passe est defini lors de l'installation (hash bcrypt ci-dessous).
--- Generer un nouveau hash: php -r "echo password_hash('VotreNouveauMotDePasse', PASSWORD_DEFAULT);"
-INSERT IGNORE INTO `admins` (`email`, `password`, `name`) VALUES
-('admin@greenez.fr', 'PLACEHOLDER_HASH_A_GENERER_A_L_INSTALLATION', 'Admin Greenez Vous');
+-- Compte administrateur.
+--
+-- Ce depot etant public, aucun hash de mot de passe reel n'est place ici :
+-- un hash expose permet une attaque par force brute hors ligne, d'autant
+-- plus efficace que l'URL d'administration est connue.
+--
+-- A l'installation, generez votre propre hash puis inserez la ligne
+-- manuellement dans phpMyAdmin :
+--   php -r "echo password_hash('VotreMotDePasse', PASSWORD_DEFAULT);"
+--
+--   INSERT INTO `admins` (`email`, `password`, `name`) VALUES
+--   ('vous@votre-domaine.fr', 'COLLER_LE_HASH_ICI', 'Administrateur');
 
 -- -----------------------------------------------------
 -- Table customers (clients)

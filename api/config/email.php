@@ -67,7 +67,13 @@ function sendEmail($to, $subject, $htmlBody, $replyTo = null) {
  * Envoyer la notification admin pour nouvelle commande
  */
 function sendAdminOrderNotification($order, $items, $customer) {
-    $adminEmail = defined('ADMIN_EMAIL') ? ADMIN_EMAIL : 'votre-adresse@exemple.fr';
+    // Pas d'adresse par defaut en dur : le depot est public, et une adresse
+    // personnelle y serait moissonnee. ADMIN_EMAIL est defini dans env.php.
+    if (!defined('ADMIN_EMAIL') || ADMIN_EMAIL === '') {
+        error_log('ADMIN_EMAIL non defini : notification de commande non envoyee');
+        return false;
+    }
+    $adminEmail = ADMIN_EMAIL;
 
     $itemsHtml = '';
     foreach ($items as $item) {
