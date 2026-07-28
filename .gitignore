@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+package-lock.json
 
 # Claude Code
 .claude/
@@ -7,6 +8,7 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
+nul
 
 # IDE
 .vscode/
@@ -15,3 +17,29 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# =====================================================
+# SECURITE - Fichiers sensibles (NE PAS RETIRER)
+# =====================================================
+
+# Credentials base de donnees
+api/config/env.php
+
+# Fichiers de debug/reset (ne doivent JAMAIS etre deployes)
+api/debug-admin.php
+api/reset-admin.php
+api/add-admin.php
+fix-password.php
+
+# =====================================================
+# Archives et dossiers de deploiement
+# =====================================================
+*.zip
+*.tar
+*.gz
+deploy-*/
+greneez-*/
+greneez-COMPLET/
+greneez-FINAL/
+greneez-hostinger-*/
+create-deploy-zip.ps1
