@@ -1,0 +1,88 @@
+name: Deployer sur Hostinger
+
+# Remplace le deploiement Vercel, qui ne pouvait pas fonctionner :
+# Vercel n'execute pas de PHP et n'heberge pas MySQL.
+#
+# Declenchement : a chaque push sur main, ou manuellement depuis
+# l'onglet Actions (bouton "Run workflow").
+#
+# Secrets a definir dans GitHub :
+#   Settings > Secrets and variables > Actions > New repository secret
+#     FTP_SERVER    : hote FTP Hostinger (ex. ftp.votredomaine.fr)
+#     FTP_USERNAME  : identifiant FTP
+#     FTP_PASSWORD  : mot de passe FTP
+#   Ces valeurs ne sont visibles que par vous ; GitHub les masque dans les logs.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un seul deploiement a la fois : evite que deux pushes rapproches
+# ne s'ecrasent mutuellement en cours de transfert
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Recuperer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dependances
+        run: npm ci
+
+      # Le site charge dist/, jamais src/. Si la compilation echoue,
+      # le deploiement s'arrete ici et rien n'est envoye en ligne.
+      - name: Compiler l'application
+        run: npm run build
+
+      - name: Verifier que les fichiers compiles existent
+        run: |
+          test -s dist/app.js || { echo "dist/app.js manquant ou vide"; exit 1; }
+          test -s dist/styles.css || { echo "dist/styles.css manquant ou vide"; exit 1; }
+          test -s index.html || { echo "index.html manquant"; exit 1; }
+          test -s .htaccess || { echo ".htaccess manquant (les URL profondes renverraient 404)"; exit 1; }
+          echo "Fichiers verifies."
+
+      - name: Envoyer sur Hostinger par FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./
+          server-dir: public_html/
+          # dangerous-clean-slate reste desactive : on ne vide jamais le
+          # serveur, on synchronise seulement les fichiers modifies.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            src/**
+            scripts/**
+            sql/**
+            landing/**
+            .github/**
+            package.json
+            package-lock.json
+            tailwind.config.js
+            vercel.json
+            DEPLOIEMENT_HOSTINGER.md
+            **/env.example.php
+            api/config/env.php
+
+      - name: Rappel
+        run: |
+          echo "Deploiement termine."
+          echo "api/config/env.php n'est jamais transmis ni supprime :"
+          echo "il contient vos identifiants de base et vit uniquement sur le serveur."

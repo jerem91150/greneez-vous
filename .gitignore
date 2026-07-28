@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json est volontairement versionne : le deploiement automatique
+# (.github/workflows/deploy-hostinger.yml) utilise `npm ci`, qui l'exige, et
+# il garantit que la compilation utilise les memes versions qu'en local.
 
 # Claude Code
 .claude/
